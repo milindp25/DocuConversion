@@ -1,0 +1,37 @@
+# Render Blueprint — one-click deploy for DocuConversion backend.
+# https://docs.render.com/blueprint-spec
+
+services:
+  - type: web
+    name: docuconversion-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: docuconversion
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: AUTH_ENABLED
+        value: "false"
+      - key: SHARE_LINK_BASE_URL
+        sync: false
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "100"
