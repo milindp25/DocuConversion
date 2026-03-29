@@ -14,7 +14,8 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 from docx import Document
-from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Pt, Inches, RGBColor
 from openpyxl import Workbook
 from PIL import Image
 from pptx import Presentation
@@ -103,12 +104,179 @@ class ConversionService:
             ) from e
 
     @staticmethod
+    def _detect_font_sizes(pdf_doc: fitz.Document) -> dict[str, float]:
+        """Analyze the PDF to determine font size thresholds for headings.
+
+        Scans all spans across all pages, counts font size frequency,
+        and classifies sizes into body, heading, and title categories.
+
+        Returns:
+            Dict with 'body', 'heading', and 'title' size thresholds.
+        """
+        size_counts: dict[float, int] = {}
+        for page in pdf_doc:
+            data = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
+            for block in data.get("blocks", []):
+                if block.get("type") != 0:
+                    continue
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        size = round(span["size"], 1)
+                        size_counts[size] = size_counts.get(size, 0) + 1
+
+        if not size_counts:
+            return {"body": 10.0, "heading": 12.0, "title": 16.0}
+
+        # The most frequent size is body text
+        body_size = max(size_counts, key=size_counts.get)
+        return {
+            "body": body_size,
+            "heading": body_size * 1.15,
+            "title": body_size * 1.5,
+        }
+
+    @staticmethod
+    def _fix_encoding(text: str) -> str:
+        """Fix common Unicode replacement characters from PDF extraction.
+
+        Some PDF fonts use non-standard character maps that cause PyMuPDF
+        to emit U+FFFD (replacement character) for en-dashes, em-dashes,
+        bullets, and other special characters.  This method replaces the
+        most common occurrences based on surrounding context.
+
+        Args:
+            text: Raw text from PyMuPDF span extraction.
+
+        Returns:
+            Text with replacement characters fixed.
+        """
+        import re
+
+        en_dash = "\u2013"  # –
+        bullet = "\u2022"   # •
+
+        # U+FFFD between digits → en-dash (e.g. "900–6017")
+        text = re.sub(
+            r"(\d)\ufffd(\d)",
+            lambda m: m.group(1) + en_dash + m.group(2),
+            text,
+        )
+        # U+FFFD between spaces/words → en-dash (e.g. "May 2025 – Present")
+        text = re.sub(
+            r"\s\ufffd\s",
+            lambda m: " " + en_dash + " ",
+            text,
+        )
+        # U+FFFD at start of text → bullet
+        if text.startswith("\ufffd"):
+            text = bullet + text[1:]
+        # Any remaining U+FFFD → en-dash
+        text = text.replace("\ufffd", en_dash)
+        return text
+
+    @staticmethod
+    def _should_split_line(prev_line: dict, curr_line: dict) -> bool:
+        """Determine if two consecutive lines should be separate paragraphs.
+
+        Lines within the same PyMuPDF block may belong to different
+        logical paragraphs (e.g., a company name followed by a job title).
+        This method detects formatting changes that indicate a paragraph
+        break.
+
+        Args:
+            prev_line: The preceding line dict from ``get_text("dict")``.
+            curr_line: The current line dict.
+
+        Returns:
+            True if a paragraph break should be inserted.
+        """
+        prev_spans = prev_line.get("spans", [])
+        curr_spans = curr_line.get("spans", [])
+        if not prev_spans or not curr_spans:
+            return False
+
+        prev_text = "".join(s["text"] for s in prev_spans).strip()
+        curr_text = "".join(s["text"] for s in curr_spans).strip()
+
+        # Bullet lines always start a new paragraph
+        if curr_text and curr_text[0] in ("\u2022", "\u2023", "\u25e6", "•", "\ufffd"):
+            return True
+
+        # Determine dominant formatting of each line
+        prev_bold = any(
+            s["flags"] & (1 << 4) for s in prev_spans if s["text"].strip()
+        )
+        prev_italic = any(
+            s["flags"] & (1 << 1) for s in prev_spans if s["text"].strip()
+        )
+        curr_bold = any(
+            s["flags"] & (1 << 4) for s in curr_spans if s["text"].strip()
+        )
+        curr_italic = any(
+            s["flags"] & (1 << 1) for s in curr_spans if s["text"].strip()
+        )
+
+        # Italic line always starts a new paragraph (job titles, etc.)
+        if curr_italic and not prev_italic:
+            return True
+
+        # Line after italic also starts new paragraph
+        if prev_italic and not curr_italic:
+            return True
+
+        # Bold line following non-bold starts new paragraph
+        if curr_bold and not prev_bold:
+            return True
+
+        return False
+
+    @staticmethod
+    def _merge_line_spans(spans: list[dict]) -> list[dict]:
+        """Merge adjacent spans with identical formatting into one span.
+
+        PyMuPDF often splits a single word or phrase into many tiny
+        spans even when their formatting is identical.  Merging them
+        produces cleaner Word output with fewer runs per paragraph.
+
+        Args:
+            spans: Raw span dicts from PyMuPDF ``get_text("dict")``.
+
+        Returns:
+            List of merged span dicts with concatenated text.
+        """
+        if not spans:
+            return []
+
+        merged: list[dict] = []
+        current = dict(spans[0])
+
+        for span in spans[1:]:
+            same_font = span["font"] == current["font"]
+            same_size = abs(span["size"] - current["size"]) < 0.5
+            same_flags = span["flags"] == current["flags"]
+            same_color = span.get("color") == current.get("color")
+
+            if same_font and same_size and same_flags and same_color:
+                current["text"] += span["text"]
+            else:
+                merged.append(current)
+                current = dict(span)
+
+        merged.append(current)
+        return merged
+
+    @staticmethod
     async def pdf_to_word(input_path: Path, output_path: Path) -> Path:
         """Convert a PDF document to Word (.docx) format.
 
-        Extracts text from each page and creates a Word document with
-        basic formatting preserved (paragraphs per page, standard font).
-        Images and complex layouts are not preserved in Phase 1.
+        Uses PyMuPDF's ``get_text("dict")`` to extract rich formatting
+        data (font name, size, bold, italic, color, position) and
+        recreates it in the Word document with proper:
+          - Headings detected by font size
+          - Bold and italic preserved per span
+          - Bullet points from ``•`` / ``-`` prefixes
+          - Right-aligned text (e.g. dates) via tab stops
+          - Font size proportionally mapped
 
         Args:
             input_path: Path to the source PDF file.
@@ -127,32 +295,204 @@ class ConversionService:
             style = doc_word.styles["Normal"]
             font = style.font
             font.name = "Calibri"
-            font.size = Pt(11)
+            font.size = Pt(10)
 
             with fitz.open(str(input_path)) as pdf_doc:
                 total_pages = len(pdf_doc)
+                thresholds = ConversionService._detect_font_sizes(pdf_doc)
 
                 for page_num in range(total_pages):
                     page = pdf_doc[page_num]
-                    blocks = page.get_text("blocks")
+                    page_width = page.rect.width
+                    page_data = page.get_text(
+                        "dict", flags=fitz.TEXT_PRESERVE_WHITESPACE
+                    )
 
-                    # Add page header
-                    if total_pages > 1:
-                        heading = doc_word.add_paragraph()
-                        run = heading.add_run(f"--- Page {page_num + 1} ---")
-                        run.bold = True
-                        run.font.size = Pt(9)
-                        run.font.color.rgb = None
+                    for block in page_data.get("blocks", []):
+                        if block.get("type") != 0:
+                            continue
 
-                    # Process each text block on the page
-                    for block in blocks:
-                        # block format: (x0, y0, x1, y1, text, block_no, block_type)
-                        if block[6] == 0:  # text block (not image)
-                            text = block[4].strip()
-                            if text:
-                                doc_word.add_paragraph(text)
+                        lines = block.get("lines", [])
+                        if not lines:
+                            continue
 
-                    # Add page break between pages (except the last)
+                        # Fix encoding in all spans upfront
+                        for line in lines:
+                            for span in line.get("spans", []):
+                                span["text"] = ConversionService._fix_encoding(
+                                    span["text"]
+                                )
+
+                        # Split block lines into logical paragraph groups.
+                        # Each group becomes one Word paragraph.
+                        para_groups: list[list[dict]] = []
+                        current_group: list[dict] = [lines[0]]
+
+                        for i in range(1, len(lines)):
+                            if ConversionService._should_split_line(
+                                lines[i - 1], lines[i]
+                            ):
+                                para_groups.append(current_group)
+                                current_group = [lines[i]]
+                            else:
+                                current_group.append(lines[i])
+                        para_groups.append(current_group)
+
+                        # Process each paragraph group
+                        for group_lines in para_groups:
+
+                            # Collect left and right spans
+                            left_spans: list[dict] = []
+                            right_spans: list[dict] = []
+
+                            for line in group_lines:
+                                line_x0 = line["bbox"][0]
+                                line_spans = line.get("spans", [])
+
+                                is_right = line_x0 > page_width * 0.65
+
+                                if is_right and left_spans:
+                                    right_spans.extend(line_spans)
+                                else:
+                                    left_spans.extend(line_spans)
+
+                            # Merge tiny spans with identical formatting
+                            left_merged = ConversionService._merge_line_spans(
+                                left_spans
+                            )
+                            right_merged = ConversionService._merge_line_spans(
+                                right_spans
+                            )
+
+                            if not left_merged and not right_merged:
+                                continue
+
+                            # Combine all text to determine paragraph type
+                            full_text = "".join(
+                                s["text"] for s in left_merged
+                            ).strip()
+                            if not full_text:
+                                continue
+
+                            # Skip page number footers (standalone digits
+                            # near the bottom of the page)
+                            if full_text.isdigit() and len(full_text) <= 3:
+                                line_y = group_lines[-1]["bbox"][3]
+                                if line_y > page.rect.height * 0.9:
+                                    continue
+
+                            # Determine the dominant font size
+                            sizes = [
+                                s["size"]
+                                for s in left_merged
+                                if s["text"].strip()
+                            ]
+                            dominant_size = (
+                                max(set(sizes), key=sizes.count)
+                                if sizes
+                                else thresholds["body"]
+                            )
+
+                            # Detect bullet points
+                            is_bullet = full_text.startswith(
+                                ("\u2022", "\u2023", "\u25e6", "•")
+                            )
+                            if is_bullet:
+                                for s in left_merged:
+                                    txt = s["text"].lstrip()
+                                    if txt and txt[0] in (
+                                        "\u2022", "\u2023", "\u25e6", "•",
+                                    ):
+                                        s["text"] = txt[1:]
+                                        break
+
+                            # Detect heading level
+                            is_title = dominant_size >= thresholds["title"]
+                            is_heading = (
+                                dominant_size >= thresholds["heading"]
+                                and not is_title
+                            )
+
+                            # Detect centered text
+                            avg_x0 = sum(
+                                l["bbox"][0] for l in group_lines
+                            ) / len(group_lines)
+                            avg_x1 = sum(
+                                l["bbox"][2] for l in group_lines
+                            ) / len(group_lines)
+                            left_margin = avg_x0
+                            right_margin = page_width - avg_x1
+                            is_centered = (
+                                abs(left_margin - right_margin)
+                                < page_width * 0.15
+                                and left_margin > page_width * 0.1
+                            )
+
+                            # Create the Word paragraph
+                            if is_bullet:
+                                para = doc_word.add_paragraph(
+                                    style="List Bullet"
+                                )
+                            else:
+                                para = doc_word.add_paragraph()
+
+                            if is_centered:
+                                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+                            # Add left-side runs with formatting
+                            for span in left_merged:
+                                text = span["text"]
+                                if not text:
+                                    continue
+
+                                run = para.add_run(text)
+                                span_size = span["size"]
+                                flags = span["flags"]
+
+                                if flags & (1 << 4):
+                                    run.bold = True
+                                if flags & (1 << 1):
+                                    run.italic = True
+
+                                if is_title:
+                                    run.font.size = Pt(16)
+                                elif is_heading:
+                                    run.font.size = Pt(13)
+                                else:
+                                    ratio = span_size / thresholds["body"]
+                                    mapped = max(8, min(14, 10 * ratio))
+                                    run.font.size = Pt(round(mapped, 1))
+
+                                color = span.get("color", 0)
+                                if color and color != 0:
+                                    r_val = (color >> 16) & 0xFF
+                                    g_val = (color >> 8) & 0xFF
+                                    b_val = color & 0xFF
+                                    if (r_val, g_val, b_val) != (0, 0, 0):
+                                        run.font.color.rgb = RGBColor(
+                                            r_val, g_val, b_val
+                                        )
+
+                            # Add right-aligned text (dates) via tab stop
+                            if right_merged:
+                                right_text = "".join(
+                                    s["text"] for s in right_merged
+                                ).strip()
+                                if right_text:
+                                    run = para.add_run("\t" + right_text)
+                                    run.font.size = Pt(10)
+
+                                    from docx.oxml import OxmlElement
+                                    from docx.oxml.ns import qn
+                                    pPr = para._p.get_or_add_pPr()
+                                    tabs_el = OxmlElement("w:tabs")
+                                    tab_el = OxmlElement("w:tab")
+                                    tab_el.set(qn("w:val"), "right")
+                                    tab_el.set(qn("w:pos"), "9360")
+                                    tabs_el.append(tab_el)
+                                    pPr.append(tabs_el)
+
+                    # Page break between pages (except the last)
                     if page_num < total_pages - 1:
                         doc_word.add_page_break()
 
