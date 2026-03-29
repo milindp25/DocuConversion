@@ -103,7 +103,7 @@ class AiService:
                 "Please configure GEMINI_API_KEY."
             )
         genai.configure(api_key=settings.gemini_api_key)
-        return genai.GenerativeModel("gemini-1.5-flash")
+        return genai.GenerativeModel("gemini-2.5-flash")
 
     @staticmethod
     def _extract_text(input_path: Path) -> tuple[str, int]:

@@ -49,8 +49,11 @@ class Settings(BaseSettings):
     class Config:
         """Pydantic settings configuration."""
 
-        env_file = ".env"
+        # Check both backend/.env and project root .env
+        env_file = (".env", "../.env")
         case_sensitive = False
+        # Ignore frontend-only env vars (NEXT_PUBLIC_*, NEXTAUTH_*, GOOGLE_*, etc.)
+        extra = "ignore"
 
 
 # Singleton settings instance — imported throughout the application
