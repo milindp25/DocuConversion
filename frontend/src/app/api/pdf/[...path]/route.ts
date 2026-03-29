@@ -10,6 +10,8 @@
  * forwards the session token as a Bearer token to the backend.
  */
 
+import crypto from "crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -69,12 +71,25 @@ async function buildBackendHeaders(
     try {
       const session = await auth();
       if (session?.user?.id) {
-        // Forward a lightweight token the backend can parse.
-        // When full JWT forwarding is configured (OAuth credentials set),
-        // this will contain the actual signed JWT from NextAuth.
-        headers["x-user-id"] = session.user.id;
-        headers["x-user-email"] = session.user.email || "";
-        headers["x-user-tier"] = (session as unknown as Record<string, string>).tier || "free";
+        const userId = session.user.id;
+        const email = session.user.email || "";
+        const tier = (session as unknown as Record<string, string>).tier || "free";
+
+        headers["x-user-id"] = userId;
+        headers["x-user-email"] = email;
+        headers["x-user-name"] = session.user.name || "";
+        headers["x-user-tier"] = tier;
+
+        // HMAC-sign the user headers so the backend can verify
+        // they came from the trusted proxy (not forged by a client)
+        const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+        if (secret) {
+          const signature = crypto
+            .createHmac("sha256", secret)
+            .update(`${userId}:${email}:${tier}`)
+            .digest("hex");
+          headers["x-user-signature"] = signature;
+        }
       }
     } catch {
       // Auth not configured or session read failed — proceed anonymously

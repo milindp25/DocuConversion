@@ -38,7 +38,7 @@ class SignatureService:
 
         The signature image is placed as a transparent overlay on the
         specified page. The coordinate system uses points (1/72 inch)
-        with the origin at the bottom-left of the page.
+        with the origin at the top-left of the page (matching PyMuPDF).
 
         Args:
             pdf_path: Path to the source PDF document.
@@ -46,7 +46,7 @@ class SignatureService:
                 for transparency support).
             page: Zero-indexed page number where the signature should be placed.
             x: Horizontal position in points from the left edge.
-            y: Vertical position in points from the bottom edge.
+            y: Vertical position in points from the top edge.
             width: Width of the signature overlay in points.
             height: Height of the signature overlay in points.
             output_path: Where to save the signed PDF.
@@ -66,13 +66,10 @@ class SignatureService:
                     )
 
                 target_page = doc[page]
-                page_height = target_page.rect.height
 
-                # Convert from bottom-left origin to PyMuPDF top-left origin
-                fitz_y = page_height - y - height
-
-                # Define the rectangle where the signature will be placed
-                sig_rect = fitz.Rect(x, fitz_y, x + width, fitz_y + height)
+                # Coordinates are already in top-left origin (matching PyMuPDF)
+                # — the API layer converts normalized (0-1) to absolute points
+                sig_rect = fitz.Rect(x, y, x + width, y + height)
 
                 # Insert the signature image
                 target_page.insert_image(

@@ -2,7 +2,7 @@
 AI-powered document analysis using Google Gemini.
 
 Provides PDF summarization, chat-with-PDF, structured data extraction,
-and OCR capabilities. Uses Gemini 1.5 Flash for fast, cost-effective
+and OCR capabilities. Uses Gemini 2.5 Flash for fast, cost-effective
 inference. All synchronous Gemini calls are wrapped with asyncio.to_thread
 to avoid blocking the event loop.
 """
@@ -196,15 +196,17 @@ class AiService:
 
     @staticmethod
     async def chat_with_pdf(
-        input_path: Path, question: str, session_id: str
+        input_path: Path | None, question: str, session_id: str
     ) -> dict:
         """Answer questions about PDF content using Gemini.
 
         Maintains chat history per session_id so follow-up questions
-        have context from previous interactions.
+        have context from previous interactions. On the first message,
+        input_path must point to a PDF file. On follow-up messages,
+        input_path can be None (the extracted text is cached per session).
 
         Args:
-            input_path: Path to the source PDF file.
+            input_path: Path to the source PDF file, or None for follow-ups.
             question: The user's question about the document.
             session_id: Unique session identifier for conversation tracking.
 

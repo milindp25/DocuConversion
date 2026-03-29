@@ -111,6 +111,7 @@ async def chat_with_pdf(
     Returns:
         JSONResponse with AiChatResponse containing the answer.
     """
+    tmp_dir_obj: tempfile.TemporaryDirectory | None = None
     try:
         if not session_id:
             session_id = str(uuid.uuid4())
@@ -124,7 +125,7 @@ async def chat_with_pdf(
                 "Upload a PDF to start the conversation."
             )
 
-        input_path = None
+        input_path: Path | None = None
         if file is not None:
             file_content = await validate_pdf_upload(file)
             safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
@@ -132,18 +133,13 @@ async def chat_with_pdf(
 
             # Write to temp file for text extraction
             tmp_dir_obj = tempfile.TemporaryDirectory()
-            tmp_dir = tmp_dir_obj.name
-            input_path = Path(tmp_dir) / "input.pdf"
+            input_path = Path(tmp_dir_obj.name) / "input.pdf"
             with open(input_path, "wb") as f:
                 f.write(file_content)
         else:
             logger.info("Chat follow-up: session=%s", session_id)
 
         result = await AiService.chat_with_pdf(input_path, question, session_id)
-
-        # Clean up temp dir if we created one
-        if input_path is not None:
-            tmp_dir_obj.cleanup()
 
         response = AiChatResponse(**result)
         return JSONResponse(content=response.model_dump())
@@ -152,6 +148,10 @@ async def chat_with_pdf(
         raise handle_docuconversion_error(e) from e
     except AiError as e:
         raise handle_docuconversion_error(e) from e
+    finally:
+        # Always clean up temp directory, even on exceptions
+        if tmp_dir_obj is not None:
+            tmp_dir_obj.cleanup()
 
 
 @router.post("/extract")
