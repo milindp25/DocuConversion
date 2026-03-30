@@ -684,10 +684,10 @@ class ConversionService:
     async def word_to_pdf(input_path: Path, output_path: Path) -> Path:
         """Convert a Word document to PDF format.
 
-        Phase 1 placeholder: This requires LibreOffice or a similar engine
-        for accurate rendering. Currently returns a basic PDF with the
-        extracted text content. Full fidelity conversion will be available
-        in Phase 2 with a LibreOffice soffice backend.
+        Reads formatting from python-docx (bold, italic, font size,
+        headings, bullet lists) and renders a styled PDF using ReportLab.
+        Not pixel-perfect compared to LibreOffice, but preserves the
+        document's visual hierarchy and formatting.
 
         Args:
             input_path: Path to the source Word document.
@@ -700,36 +700,124 @@ class ConversionService:
             ConversionError: If the Word document cannot be read or PDF creation fails.
         """
         try:
+            from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import (
+                SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem,
+            )
+            from reportlab.lib.units import inch
+
             doc = Document(str(input_path))
 
-            c = canvas.Canvas(str(output_path), pagesize=letter)
-            width, height = letter
-            margin = 72  # 1 inch margins
-            y_position = height - margin
-            line_height = 14
+            pdf_doc = SimpleDocTemplate(
+                str(output_path),
+                pagesize=letter,
+                leftMargin=72,
+                rightMargin=72,
+                topMargin=72,
+                bottomMargin=72,
+            )
+
+            styles = getSampleStyleSheet()
+
+            # Custom styles for different Word paragraph types
+            styles.add(ParagraphStyle(
+                "DocHeading1",
+                parent=styles["Heading1"],
+                fontSize=18,
+                spaceAfter=12,
+                spaceBefore=16,
+            ))
+            styles.add(ParagraphStyle(
+                "DocHeading2",
+                parent=styles["Heading2"],
+                fontSize=14,
+                spaceAfter=8,
+                spaceBefore=12,
+            ))
+            styles.add(ParagraphStyle(
+                "DocBody",
+                parent=styles["Normal"],
+                fontSize=11,
+                leading=14,
+                spaceAfter=4,
+            ))
+            styles.add(ParagraphStyle(
+                "DocBodyCenter",
+                parent=styles["Normal"],
+                fontSize=11,
+                leading=14,
+                alignment=TA_CENTER,
+                spaceAfter=4,
+            ))
+
+            story: list = []
 
             for paragraph in doc.paragraphs:
                 text = paragraph.text.strip()
                 if not text:
-                    y_position -= line_height
+                    story.append(Spacer(1, 6))
                     continue
 
-                # Wrap text at word boundaries for readable output
-                lines = textwrap.wrap(text, width=80)
+                # Determine style from Word paragraph style name
+                style_name = paragraph.style.name if paragraph.style else ""
 
-                for line in lines:
-                    if y_position < margin:
-                        c.showPage()
-                        y_position = height - margin
+                if "Heading 1" in style_name or "Title" in style_name:
+                    style = styles["DocHeading1"]
+                elif "Heading 2" in style_name:
+                    style = styles["DocHeading2"]
+                elif "Heading" in style_name:
+                    style = styles["DocHeading2"]
+                else:
+                    # Check alignment
+                    from docx.enum.text import WD_ALIGN_PARAGRAPH as WDA
+                    if paragraph.alignment == WDA.CENTER:
+                        style = styles["DocBodyCenter"]
+                    else:
+                        style = styles["DocBody"]
 
-                    c.setFont("Helvetica", 11)
-                    c.drawString(margin, y_position, line)
-                    y_position -= line_height
+                # Build rich text with inline formatting from runs
+                rich_parts: list[str] = []
+                for run in paragraph.runs:
+                    run_text = run.text
+                    if not run_text:
+                        continue
 
-            c.save()
+                    # Escape XML special chars for ReportLab
+                    run_text = (
+                        run_text.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                    )
+
+                    if run.bold and run.italic:
+                        rich_parts.append(f"<b><i>{run_text}</i></b>")
+                    elif run.bold:
+                        rich_parts.append(f"<b>{run_text}</b>")
+                    elif run.italic:
+                        rich_parts.append(f"<i>{run_text}</i>")
+                    else:
+                        rich_parts.append(run_text)
+
+                rich_text = "".join(rich_parts) if rich_parts else text
+
+                # Handle list/bullet paragraphs
+                if "List" in style_name or "Bullet" in style_name:
+                    bullet_para = Paragraph(rich_text, styles["DocBody"])
+                    story.append(
+                        ListFlowable(
+                            [ListItem(bullet_para)],
+                            bulletType="bullet",
+                            start=None,
+                        )
+                    )
+                else:
+                    story.append(Paragraph(rich_text, style))
+
+            pdf_doc.build(story)
 
             logger.info(
-                "Word to PDF conversion complete (Phase 1 text-only): %s",
+                "Word to PDF conversion complete: %s",
                 output_path.name,
             )
             return output_path
@@ -738,8 +826,7 @@ class ConversionService:
             logger.error("Word to PDF conversion failed: %s", str(e))
             raise ConversionError(
                 "Failed to convert Word document to PDF. "
-                "The file may be corrupted or in an unsupported format. "
-                "Note: Full fidelity Word-to-PDF conversion requires Phase 2."
+                "The file may be corrupted or in an unsupported format."
             ) from e
 
     @staticmethod
@@ -901,4 +988,253 @@ class ConversionService:
             raise ConversionError(
                 "Failed to convert PDF to PowerPoint format. "
                 "The file may be corrupted or contain unsupported content."
+            ) from e
+
+    @staticmethod
+    async def excel_to_pdf(input_path: Path, output_path: Path) -> Path:
+        """Convert an Excel workbook to PDF format.
+
+        Reads each worksheet with openpyxl and renders tables using
+        ReportLab's Platypus Table flowable.
+
+        Args:
+            input_path: Path to the source .xlsx file.
+            output_path: Where to save the generated PDF.
+
+        Returns:
+            Path to the created PDF file.
+        """
+        try:
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.lib import colors
+
+            wb = Workbook()
+            wb = __import__("openpyxl").load_workbook(str(input_path), data_only=True)
+
+            pdf_doc = SimpleDocTemplate(
+                str(output_path), pagesize=letter,
+                leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36,
+            )
+            styles = getSampleStyleSheet()
+            story: list = []
+
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                story.append(Paragraph(f"<b>{sheet_name}</b>", styles["Heading2"]))
+
+                data: list[list[str]] = []
+                for row in ws.iter_rows(values_only=True):
+                    data.append([str(cell) if cell is not None else "" for cell in row])
+
+                if not data:
+                    story.append(Paragraph("(empty sheet)", styles["Normal"]))
+                    continue
+
+                # Limit column widths to fit on page
+                num_cols = max(len(r) for r in data) if data else 1
+                col_width = min(120, (7.5 * 72) / num_cols)
+
+                table = Table(data, colWidths=[col_width] * num_cols)
+                table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.Color(0.95, 0.95, 0.95)]),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 20))
+
+            pdf_doc.build(story)
+            logger.info("Excel to PDF conversion complete: %s", output_path.name)
+            return output_path
+
+        except Exception as e:
+            logger.error("Excel to PDF conversion failed: %s", str(e))
+            raise ConversionError(
+                "Failed to convert Excel to PDF. "
+                "The file may be corrupted or in an unsupported format."
+            ) from e
+
+    @staticmethod
+    async def pptx_to_pdf(input_path: Path, output_path: Path) -> Path:
+        """Convert a PowerPoint presentation to PDF format.
+
+        Renders each slide as an image by extracting text and shapes,
+        then assembles into a PDF. For best fidelity, each slide is
+        rendered as a descriptive page with title and content.
+
+        Args:
+            input_path: Path to the source .pptx file.
+            output_path: Where to save the generated PDF.
+
+        Returns:
+            Path to the created PDF file.
+        """
+        try:
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.enums import TA_CENTER
+
+            prs = Presentation(str(input_path))
+
+            pdf_doc = SimpleDocTemplate(
+                str(output_path), pagesize=letter,
+                leftMargin=72, rightMargin=72, topMargin=72, bottomMargin=72,
+            )
+            styles = getSampleStyleSheet()
+            styles.add(ParagraphStyle(
+                "SlideTitle", parent=styles["Heading1"],
+                fontSize=20, alignment=TA_CENTER, spaceAfter=20,
+            ))
+            story: list = []
+
+            for slide_num, slide in enumerate(prs.slides, 1):
+                # Extract title
+                title = ""
+                if slide.shapes.title:
+                    title = slide.shapes.title.text
+
+                story.append(Paragraph(
+                    f"<b>Slide {slide_num}</b>" + (f": {title}" if title else ""),
+                    styles["SlideTitle"],
+                ))
+
+                # Extract all text from shapes
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        for para in shape.text_frame.paragraphs:
+                            text = para.text.strip()
+                            if text and text != title:
+                                # Escape XML
+                                text = (
+                                    text.replace("&", "&amp;")
+                                    .replace("<", "&lt;")
+                                    .replace(">", "&gt;")
+                                )
+                                story.append(Paragraph(text, styles["Normal"]))
+
+                # Add page break between slides
+                if slide_num < len(prs.slides):
+                    story.append(PageBreak())
+
+            pdf_doc.build(story)
+            logger.info(
+                "PPTX to PDF conversion complete: %d slides -> %s",
+                len(prs.slides), output_path.name,
+            )
+            return output_path
+
+        except Exception as e:
+            logger.error("PPTX to PDF conversion failed: %s", str(e))
+            raise ConversionError(
+                "Failed to convert PowerPoint to PDF. "
+                "The file may be corrupted or in an unsupported format."
+            ) from e
+
+    @staticmethod
+    async def html_to_pdf(input_path: Path, output_path: Path) -> Path:
+        """Convert an HTML file to PDF format.
+
+        Parses the HTML content and renders it to PDF using ReportLab's
+        Paragraph flowable which supports basic HTML tags (b, i, br, etc.).
+
+        Args:
+            input_path: Path to the source .html file.
+            output_path: Where to save the generated PDF.
+
+        Returns:
+            Path to the created PDF file.
+        """
+        try:
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet
+            import re as re_mod
+
+            html_content = input_path.read_text(encoding="utf-8")
+
+            # Strip <script> and <style> tags
+            html_content = re_mod.sub(
+                r"<(script|style)[^>]*>.*?</\1>", "", html_content,
+                flags=re_mod.DOTALL | re_mod.IGNORECASE,
+            )
+
+            # Extract title if present
+            title_match = re_mod.search(
+                r"<title[^>]*>(.*?)</title>",
+                html_content, re_mod.IGNORECASE | re_mod.DOTALL,
+            )
+
+            # Extract body content
+            body_match = re_mod.search(
+                r"<body[^>]*>(.*?)</body>",
+                html_content, re_mod.IGNORECASE | re_mod.DOTALL,
+            )
+            body = body_match.group(1) if body_match else html_content
+
+            # Convert headings to bold
+            for h in ("h1", "h2", "h3", "h4", "h5", "h6"):
+                body = re_mod.sub(
+                    rf"<{h}[^>]*>(.*?)</{h}>",
+                    r"<b>\1</b><br/>",
+                    body,
+                    flags=re_mod.IGNORECASE | re_mod.DOTALL,
+                )
+
+            # Convert strong/em to b/i
+            body = re_mod.sub(r"<strong[^>]*>", "<b>", body, flags=re_mod.IGNORECASE)
+            body = re_mod.sub(r"</strong>", "</b>", body, flags=re_mod.IGNORECASE)
+            body = re_mod.sub(r"<em[^>]*>", "<i>", body, flags=re_mod.IGNORECASE)
+            body = re_mod.sub(r"</em>", "</i>", body, flags=re_mod.IGNORECASE)
+
+            # Convert list items to bullet lines
+            bullet_char = "\u2022"
+            body = re_mod.sub(
+                r"<li[^>]*>(.*?)</li>",
+                lambda m: f"{bullet_char} {m.group(1)}<br/>",
+                body,
+                flags=re_mod.IGNORECASE | re_mod.DOTALL,
+            )
+
+            # Strip all remaining HTML tags except b, i, u, br
+            cleaned = re_mod.sub(
+                r"<(?!/?(?:b|i|u|br)\b)[^>]+>", " ", body
+            )
+            # Normalize whitespace
+            cleaned = re_mod.sub(r"\s+", " ", cleaned).strip()
+
+            pdf_doc = SimpleDocTemplate(
+                str(output_path), pagesize=letter,
+                leftMargin=72, rightMargin=72, topMargin=72, bottomMargin=72,
+            )
+            styles = getSampleStyleSheet()
+            story: list = []
+
+            if title_match:
+                title = title_match.group(1).strip()
+                story.append(Paragraph(f"<b>{title}</b>", styles["Title"]))
+                story.append(Spacer(1, 12))
+
+            # Split on <br/> and <p> to create separate paragraphs
+            parts = re_mod.split(r"<br\s*/?>|</p>|<p[^>]*>", cleaned)
+            for part in parts:
+                text = part.strip()
+                if text:
+                    story.append(Paragraph(text, styles["Normal"]))
+
+            if not story:
+                story.append(Paragraph("(empty document)", styles["Normal"]))
+
+            pdf_doc.build(story)
+            logger.info("HTML to PDF conversion complete: %s", output_path.name)
+            return output_path
+
+        except Exception as e:
+            logger.error("HTML to PDF conversion failed: %s", str(e))
+            raise ConversionError(
+                "Failed to convert HTML to PDF. "
+                "The file may be corrupted or in an unsupported format."
             ) from e

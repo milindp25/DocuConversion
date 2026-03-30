@@ -492,3 +492,152 @@ async def convert_pdf_to_powerpoint(
         if "job_id" in locals():
             job_manager.fail_job(job_id, e.message)
         raise handle_docuconversion_error(e) from e
+
+
+EXCEL_EXTENSIONS = [".xls", ".xlsx"]
+PPTX_EXTENSIONS = [".ppt", ".pptx"]
+HTML_EXTENSIONS = [".html", ".htm"]
+
+
+@router.post("/excel-to-pdf", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def convert_excel_to_pdf(
+    request: Request,
+    file: UploadFile = File(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Convert an Excel workbook (.xlsx) to PDF format."""
+    try:
+        validate_file_extension(file.filename or "", EXCEL_EXTENSIONS)
+        file_content = await validate_upload_file(file)
+        job_id, _ = job_manager.create_job(
+            file.filename or "workbook.xlsx",
+            user_id=user.user_id if user else None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.xlsx"
+            output_path = tmp_path / "output.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Converting Excel to PDF...")
+            await ConversionService.excel_to_pdf(input_path, output_path)
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+            storage = get_storage()
+            r2_key = f"conversions/{job_id}/output.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message="Excel converted to PDF successfully.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (ConversionError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/pptx-to-pdf", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def convert_pptx_to_pdf(
+    request: Request,
+    file: UploadFile = File(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Convert a PowerPoint presentation (.pptx) to PDF format."""
+    try:
+        validate_file_extension(file.filename or "", PPTX_EXTENSIONS)
+        file_content = await validate_upload_file(file)
+        job_id, _ = job_manager.create_job(
+            file.filename or "presentation.pptx",
+            user_id=user.user_id if user else None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pptx"
+            output_path = tmp_path / "output.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Converting PowerPoint to PDF...")
+            await ConversionService.pptx_to_pdf(input_path, output_path)
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+            storage = get_storage()
+            r2_key = f"conversions/{job_id}/output.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message="PowerPoint converted to PDF successfully.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (ConversionError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/html-to-pdf", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def convert_html_to_pdf(
+    request: Request,
+    file: UploadFile = File(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Convert an HTML file to PDF format."""
+    try:
+        validate_file_extension(file.filename or "", HTML_EXTENSIONS)
+        file_content = await validate_upload_file(file)
+        job_id, _ = job_manager.create_job(
+            file.filename or "page.html",
+            user_id=user.user_id if user else None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.html"
+            output_path = tmp_path / "output.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Converting HTML to PDF...")
+            await ConversionService.html_to_pdf(input_path, output_path)
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+            storage = get_storage()
+            r2_key = f"conversions/{job_id}/output.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message="HTML converted to PDF successfully.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (ConversionError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e

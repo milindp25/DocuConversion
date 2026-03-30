@@ -106,7 +106,9 @@ class OrganizationService:
             ) from e
 
     @staticmethod
-    async def compress_pdf(input_path: Path, output_path: Path, quality: str = "recommended") -> Path:
+    async def compress_pdf(
+        input_path: Path, output_path: Path, quality: str = "recommended"
+    ) -> dict:
         """Compress a PDF to reduce file size.
 
         Uses PyMuPDF's built-in optimization to reduce size while
@@ -118,14 +120,14 @@ class OrganizationService:
             quality: Compression level - 'low', 'recommended', or 'high'.
 
         Returns:
-            Path to the compressed output file.
+            Dict with 'path', 'original_size_kb', 'compressed_size_kb',
+            and 'reduction_percent'.
 
         Raises:
             OrganizationError: If compression fails.
         """
         try:
             with fitz.open(str(input_path)) as doc:
-                # Compression settings based on quality level
                 garbage = {"low": 1, "recommended": 3, "high": 4}.get(quality, 3)
                 deflate = quality == "high"
 
@@ -138,7 +140,11 @@ class OrganizationService:
 
             original_size = input_path.stat().st_size
             compressed_size = output_path.stat().st_size
-            reduction = ((original_size - compressed_size) / original_size) * 100
+            reduction = (
+                ((original_size - compressed_size) / original_size) * 100
+                if original_size > 0
+                else 0.0
+            )
 
             logger.info(
                 "PDF compressed: %.1f%% reduction (%d KB -> %d KB)",
@@ -146,7 +152,12 @@ class OrganizationService:
                 original_size // 1024,
                 compressed_size // 1024,
             )
-            return output_path
+            return {
+                "path": output_path,
+                "original_size_kb": round(original_size / 1024, 1),
+                "compressed_size_kb": round(compressed_size / 1024, 1),
+                "reduction_percent": round(reduction, 1),
+            }
 
         except Exception as e:
             logger.error("PDF compression failed: %s", str(e))
@@ -220,4 +231,56 @@ class OrganizationService:
             raise OrganizationError(
                 "Failed to rotate PDF pages. The file may be corrupted "
                 "or the page specification is invalid."
+            ) from e
+
+    @staticmethod
+    async def reorder_pages(
+        input_path: Path, output_path: Path, page_order: list[int]
+    ) -> Path:
+        """Reorder pages in a PDF based on a new page sequence.
+
+        Args:
+            input_path: Path to the source PDF.
+            output_path: Where to save the reordered PDF.
+            page_order: List of 1-indexed page numbers in desired order.
+                        e.g. [3, 1, 2] puts page 3 first, then 1, then 2.
+
+        Returns:
+            Path to the reordered PDF.
+
+        Raises:
+            OrganizationError: If reordering fails or page numbers are invalid.
+        """
+        try:
+            with fitz.open(str(input_path)) as doc:
+                total = len(doc)
+
+                # Validate page numbers
+                for p in page_order:
+                    if p < 1 or p > total:
+                        raise OrganizationError(
+                            f"Page {p} is out of range. "
+                            f"Document has {total} pages."
+                        )
+
+                # Convert to 0-indexed
+                zero_indexed = [p - 1 for p in page_order]
+
+                doc.select(zero_indexed)
+                doc.save(str(output_path))
+
+            logger.info(
+                "Reordered %d pages -> %s",
+                len(page_order),
+                output_path.name,
+            )
+            return output_path
+
+        except OrganizationError:
+            raise
+        except Exception as e:
+            logger.error("PDF reorder failed: %s", str(e))
+            raise OrganizationError(
+                "Failed to reorder PDF pages. "
+                "The file may be corrupted or the page order is invalid."
             ) from e

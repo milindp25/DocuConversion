@@ -184,18 +184,89 @@ async def unlock_pdf(
 
 
 @router.post("/redact", response_model=ProcessingResponse)
-async def redact_content() -> ProcessingResponse:
+@limiter.limit("10/minute")
+async def redact_content(
+    request: Request,
+    file: UploadFile = File(...),
+    search_text: str = Form(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
     """Permanently redact sensitive content from a PDF.
 
-    Removes text, images, or annotations from specified areas.
-    This operation is irreversible -- redacted content cannot be recovered.
+    Searches for all occurrences of the given text and covers them
+    with black rectangles. The underlying text is permanently removed
+    when the PDF is saved — this operation is irreversible.
 
-    Returns:
-        ProcessingResponse indicating this feature is not yet available.
+    Args:
+        file: The PDF file to redact (multipart upload).
+        search_text: The text string to find and redact.
     """
-    # Phase 2: Requires redaction annotation support
-    return ProcessingResponse(
-        job_id="pending",
-        status=JobStatus.FAILED,
-        message="PDF content redaction is not yet available. Coming in Phase 2.",
-    )
+    import fitz
+    import tempfile as tmp_mod
+
+    try:
+        file_content = await validate_pdf_upload(file)
+
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+
+        with tmp_mod.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            output_path = tmp_path / "redacted.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 20, "Searching for text...")
+
+            with fitz.open(str(input_path)) as doc:
+                total_redactions = 0
+
+                for page in doc:
+                    instances = page.search_for(search_text)
+                    for rect in instances:
+                        page.add_redact_annot(rect, fill=(0, 0, 0))
+                        total_redactions += 1
+                    if instances:
+                        page.apply_redactions()
+
+                job_manager.update_progress(job_id, 60, "Saving redacted PDF...")
+                doc.save(str(output_path))
+
+            if total_redactions == 0:
+                job_manager.complete_job(job_id, "")
+                return ProcessingResponse(
+                    job_id=job_id,
+                    status=JobStatus.COMPLETED,
+                    message="No instances of the search text were found in the PDF.",
+                )
+
+            job_manager.update_progress(job_id, 80, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"secure/{job_id}/redacted.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message=f"Redacted {total_redactions} instance(s) of the search text.",
+        )
+
+    except (FileValidationError, SecurityError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, str(e))
+        raise handle_docuconversion_error(e) from e
+    except Exception as e:
+        logger.error("Redaction failed: %s", str(e))
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, str(e))
+        raise handle_docuconversion_error(
+            SecurityError(f"Redaction failed: {str(e)}")
+        ) from e

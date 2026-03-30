@@ -284,7 +284,9 @@ async def compress_pdf(
 
             job_manager.update_progress(job_id, 30, "Compressing PDF...")
 
-            await OrganizationService.compress_pdf(input_path, output_path, quality=level)
+            result = await OrganizationService.compress_pdf(
+                input_path, output_path, quality=level
+            )
 
             job_manager.update_progress(job_id, 70, "Uploading result...")
 
@@ -295,10 +297,18 @@ async def compress_pdf(
             download_url = await storage.generate_download_url(r2_key)
             job_manager.complete_job(job_id, download_url)
 
+        original_kb = result["original_size_kb"]
+        compressed_kb = result["compressed_size_kb"]
+        reduction = result["reduction_percent"]
+
         return ProcessingResponse(
             job_id=job_id,
             status=JobStatus.COMPLETED,
-            message="PDF compressed successfully.",
+            message=(
+                f"PDF compressed successfully. "
+                f"{original_kb} KB → {compressed_kb} KB "
+                f"({reduction}% reduction)."
+            ),
         )
 
     except FileValidationError as e:
@@ -383,11 +393,69 @@ async def rotate_pdf_pages(
 
 
 @router.post("/reorder", response_model=ProcessingResponse)
-async def reorder_pages() -> ProcessingResponse:
-    """Reorder pages within a PDF based on a new page sequence."""
-    # TODO: Implement via OrganizationService in Phase 2
-    return ProcessingResponse(
-        job_id="pending",
-        status=JobStatus.FAILED,
-        message="This feature is coming soon.",
-    )
+@limiter.limit("10/minute")
+async def reorder_pages(
+    request: Request,
+    file: UploadFile = File(...),
+    page_order: str = Form(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Reorder pages within a PDF based on a new page sequence.
+
+    Args:
+        file: The PDF file to reorder (multipart upload).
+        page_order: JSON array of 1-indexed page numbers in desired order,
+                    e.g. ``[3, 1, 2]`` puts page 3 first.
+    """
+    import json as json_module
+
+    try:
+        validate_file_extension(file.filename or "", [".pdf"])
+        file_content = await validate_upload_file(file)
+
+        # Parse page order from JSON string
+        try:
+            order = json_module.loads(page_order)
+            if not isinstance(order, list) or not all(isinstance(p, int) for p in order):
+                raise ValueError("page_order must be a JSON array of integers")
+        except (json_module.JSONDecodeError, ValueError) as e:
+            raise FileValidationError(str(e)) from e
+
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            output_path = tmp_path / "reordered.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Reordering pages...")
+
+            await OrganizationService.reorder_pages(input_path, output_path, order)
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"organize/{job_id}/reordered.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message=f"PDF pages reordered successfully ({len(order)} pages).",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (OrganizationError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
