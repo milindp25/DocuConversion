@@ -19,6 +19,8 @@ export interface DownloadButtonProps {
   fileName: string;
   /** File size of the result (for display) */
   fileSize?: number;
+  /** Optional callback to reset state and process another file */
+  onReset?: () => void;
 }
 
 /**
@@ -34,10 +36,16 @@ export interface DownloadButtonProps {
  * />
  * ```
  */
+/**
+ * DownloadButton renders a prominent call-to-action button for downloading
+ * the processed file. Optionally shows a "Process another file" link when
+ * `onReset` is provided.
+ */
 export function DownloadButton({
   downloadUrl,
   fileName,
   fileSize,
+  onReset,
 }: DownloadButtonProps) {
   return (
     <div className="flex flex-col items-center gap-3">
@@ -72,6 +80,17 @@ export function DownloadButton({
 
         <Download className="h-5 w-5 ml-1" aria-hidden="true" />
       </a>
+
+      {onReset && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-sm text-gray-400 hover:text-white transition-colors"
+          aria-label="Process another file"
+        >
+          &#8635; Process another file
+        </button>
+      )}
     </div>
   );
 }

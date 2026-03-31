@@ -45,6 +45,27 @@ const ARTICLES: BlogArticle[] = [
     description:
       "Understand the legal validity of electronic signatures, how they differ from digital signatures, and how to sign PDFs in seconds.",
   },
+  {
+    slug: "merge-pdf-guide",
+    title: "How to Merge PDF Files Online — Step by Step Guide",
+    date: "2024-11-28",
+    description:
+      "Combine multiple PDF documents into a single file in seconds. Learn when and why to merge PDFs, plus tips for keeping your pages in the right order.",
+  },
+  {
+    slug: "watermark-pdf-guide",
+    title: "How to Add Watermarks to PDF Documents",
+    date: "2024-11-20",
+    description:
+      "Protect your intellectual property and brand your documents by adding text or image watermarks to any PDF. A practical guide with best practices.",
+  },
+  {
+    slug: "ai-pdf-tools",
+    title: "AI-Powered PDF Tools: The Future of Document Processing",
+    date: "2024-11-15",
+    description:
+      "Discover how artificial intelligence is transforming PDF workflows, from intelligent OCR and auto-formatting to smart document comparison and data extraction.",
+  },
 ] as const;
 
 /**

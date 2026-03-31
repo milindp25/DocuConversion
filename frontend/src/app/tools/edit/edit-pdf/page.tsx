@@ -9,7 +9,7 @@
 
 import { useCallback, useState } from "react";
 
-import { PenLine, Loader2 } from "lucide-react";
+import { PenLine, Loader2, FileText, AlertCircle } from "lucide-react";
 
 import { ToolPageLayout } from "@/components/tools/ToolPageLayout";
 import { FileUploader } from "@/components/tools/FileUploader";
@@ -22,6 +22,13 @@ import { ACCEPTED_FILE_TYPES, MAX_FILE_SIZE } from "@/lib/constants";
 interface EditResponse {
   job_id: string;
   download_url: string;
+}
+
+/** Response from the preview/info endpoint */
+interface PreviewInfoResponse {
+  page_count: number;
+  width: number;
+  height: number;
 }
 
 /**
@@ -50,21 +57,96 @@ export default function EditPdfPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [pdfDimensions, setPdfDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
-  /** Handles PDF file selection from the uploader */
+  /**
+   * Fetches a rendered page image from the backend preview endpoint.
+   * @param file - The PDF file to render
+   * @param page - 1-indexed page number
+   */
+  const fetchPagePreview = useCallback(async (file: File, page: number) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("page", String(page));
+
+      const response = await fetch("/api/preview/render-page", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) return null;
+
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /**
+   * Handles PDF file selection from the uploader.
+   * Calls the preview/info endpoint to get page count, then attempts
+   * to render a preview image of the first page.
+   */
   const handleFileSelect = useCallback(
-    (file: File) => {
-      // Default to 1 page; a future enhancement could read page count client-side
+    async (file: File) => {
+      setIsLoadingPreview(true);
+      setPreviewError(null);
+      setPdfDimensions(null);
+      setPreviewImageUrl(null);
+
+      // Default load with 1 page — will update once we know actual count
       loadFile(file, 1);
+
+      try {
+        // Fetch PDF info (page count, dimensions)
+        const infoFormData = new FormData();
+        infoFormData.append("file", file);
+
+        const infoRes = await fetch("/api/preview/info", {
+          method: "POST",
+          body: infoFormData,
+        });
+
+        if (infoRes.ok) {
+          const info: PreviewInfoResponse = await infoRes.json();
+          setPdfDimensions({ width: info.width, height: info.height });
+          // Re-load file with the correct page count
+          loadFile(file, info.page_count);
+        }
+
+        // Try to fetch page 1 preview image
+        const imageUrl = await fetchPagePreview(file, 1);
+        if (imageUrl) {
+          setPreviewImageUrl(imageUrl);
+        }
+      } catch {
+        setPreviewError("Could not load PDF preview.");
+      } finally {
+        setIsLoadingPreview(false);
+      }
     },
-    [loadFile]
+    [loadFile, fetchPagePreview]
   );
 
-  /** Handles file removal — resets the editor */
+  /** Handles file removal — resets the editor and cleans up preview state */
   const handleFileRemove = useCallback(() => {
+    if (previewImageUrl) {
+      URL.revokeObjectURL(previewImageUrl);
+    }
+    setPreviewImageUrl(null);
+    setPdfDimensions(null);
+    setPreviewError(null);
     unloadFile();
     setSaveError(null);
-  }, [unloadFile]);
+  }, [unloadFile, previewImageUrl]);
 
   /** Sends annotations to the backend for PDF modification and triggers download */
   const handleSave = useCallback(async () => {
@@ -167,6 +249,17 @@ export default function EditPdfPage() {
                 currentPage={state.currentPage}
                 totalPages={state.totalPages}
                 zoom={state.zoom}
+                previewImageUrl={previewImageUrl}
+                isLoadingPreview={isLoadingPreview}
+                previewError={previewError}
+                onPageChange={async (page: number) => {
+                  setPage(page);
+                  if (state.file) {
+                    const newUrl = await fetchPagePreview(state.file, page);
+                    if (previewImageUrl) URL.revokeObjectURL(previewImageUrl);
+                    setPreviewImageUrl(newUrl);
+                  }
+                }}
               />
             </div>
 

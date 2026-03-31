@@ -22,6 +22,8 @@ export interface ProgressBarProps {
   isError: boolean;
   /** Error message to display on failure */
   errorMessage?: string;
+  /** Optional callback to retry after a failure */
+  onRetry?: () => void;
 }
 
 /**
@@ -45,6 +47,7 @@ export function ProgressBar({
   isComplete,
   isError,
   errorMessage,
+  onRetry,
 }: ProgressBarProps) {
   /** Clamp progress to 0-100 range */
   const clampedProgress = Math.min(100, Math.max(0, progress));
@@ -123,11 +126,23 @@ export function ProgressBar({
 
       {/* Error state */}
       {isError && (
-        <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400">
-          <XCircle className="h-5 w-5" aria-hidden="true" />
-          <span className="text-sm font-medium">
-            {errorMessage || "Processing failed. Please try again."}
-          </span>
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <XCircle className="h-5 w-5" aria-hidden="true" />
+            <span className="text-sm font-medium">
+              {errorMessage || "Processing failed. Please try again."}
+            </span>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="text-sm font-medium text-blue-500 hover:text-blue-400 transition-colors"
+              aria-label="Try again"
+            >
+              &#8635; Try again
+            </button>
+          )}
         </div>
       )}
     </div>

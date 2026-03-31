@@ -8,6 +8,7 @@ central hub for the backend service.
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -15,6 +16,7 @@ from slowapi.util import get_remote_address
 
 from app.api import ai, advanced, convert, developer, edit, jobs, organize, payments, preview, share, sign, secure
 from app.core.config import settings
+from app.core.exceptions import DocuConversionError, handle_docuconversion_error
 
 # Disable OpenAPI docs in production to reduce attack surface
 _docs_url = None if settings.environment == "production" else "/docs"
@@ -34,6 +36,30 @@ app = FastAPI(
 # Attach the limiter to app state so slowapi middleware can access it
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(DocuConversionError)
+async def docuconversion_error_handler(
+    request: Request, exc: DocuConversionError
+) -> JSONResponse:
+    """Global handler for all DocuConversion domain exceptions.
+
+    Catches custom exceptions raised from dependencies (e.g. tier-limit
+    checks) that bypass per-endpoint try/except blocks, ensuring
+    clients always receive a structured JSON error instead of a 500.
+
+    Args:
+        request: The incoming request.
+        exc: The domain exception that was raised.
+
+    Returns:
+        A JSONResponse with the appropriate HTTP status and detail message.
+    """
+    http_exc = handle_docuconversion_error(exc)
+    return JSONResponse(
+        status_code=http_exc.status_code,
+        content={"detail": http_exc.detail},
+    )
 
 # Configure CORS with explicit allowed methods and headers
 app.add_middleware(

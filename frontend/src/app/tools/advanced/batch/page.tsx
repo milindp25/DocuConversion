@@ -9,7 +9,17 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { Layers, Download, Loader2, X, FileIcon, AlertCircle } from "lucide-react";
+import {
+  Layers,
+  Download,
+  Loader2,
+  X,
+  FileIcon,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+} from "lucide-react";
 
 import { ToolPageLayout } from "@/components/tools/ToolPageLayout";
 import { FileUploader } from "@/components/tools/FileUploader";
@@ -100,9 +110,13 @@ export default function BatchProcessingPage() {
       });
       formData.append("operation", operation);
 
-      // Mark all as uploading
+      // Simulate staggered per-file progress based on file index
       setFileProgress((prev) =>
-        prev.map((fp) => ({ ...fp, status: "uploading", progress: 50 }))
+        prev.map((fp, idx) => ({
+          ...fp,
+          status: "uploading" as const,
+          progress: Math.max(10, 50 - idx * 10),
+        }))
       );
 
       const response = await fetch(`/api/pdf/advanced/batch`, {
@@ -158,10 +172,27 @@ export default function BatchProcessingPage() {
             );
           }
 
-          // Update progress
-          const progress = Math.min(statusData.progress || 50, 99);
+          // Update progress — simulate staggered per-file completion
+          const overallProgress = Math.min(statusData.progress || 50, 99);
           setFileProgress((prev) =>
-            prev.map((fp) => ({ ...fp, progress }))
+            prev.map((fp, idx) => {
+              const fileThreshold = ((idx + 1) / prev.length) * 100;
+              if (overallProgress >= fileThreshold) {
+                return { ...fp, status: "completed" as const, progress: 100 };
+              }
+              return {
+                ...fp,
+                status: "uploading" as const,
+                progress: Math.min(
+                  Math.round(
+                    ((overallProgress - (idx / prev.length) * 100) /
+                      (100 / prev.length)) *
+                      100
+                  ),
+                  99
+                ),
+              };
+            })
           );
 
           await new Promise((resolve) => setTimeout(resolve, pollInterval));
@@ -256,23 +287,44 @@ export default function BatchProcessingPage() {
                   </p>
                 </div>
 
-                {/* Per-file progress */}
+                {/* Per-file status indicator */}
                 {fp && fp.status !== "pending" && (
-                  <div className="w-20">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-gray-700">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-300",
-                          fp.status === "completed"
-                            ? "bg-green-500"
-                            : fp.status === "failed"
-                              ? "bg-red-500"
-                              : "bg-blue-500"
-                        )}
-                        style={{ width: `${fp.progress}%` }}
+                  <div className="flex items-center gap-2">
+                    {fp.status === "uploading" && (
+                      <>
+                        <div className="w-16">
+                          <div className="h-1.5 overflow-hidden rounded-full bg-gray-700">
+                            <div
+                              className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                              style={{ width: `${fp.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                        <Loader2
+                          className="h-4 w-4 animate-spin text-blue-400"
+                          aria-label="Processing"
+                        />
+                      </>
+                    )}
+                    {fp.status === "completed" && (
+                      <CheckCircle2
+                        className="h-5 w-5 text-green-400"
+                        aria-label="Completed"
                       />
-                    </div>
+                    )}
+                    {fp.status === "failed" && (
+                      <XCircle
+                        className="h-5 w-5 text-red-400"
+                        aria-label="Failed"
+                      />
+                    )}
                   </div>
+                )}
+                {fp && fp.status === "pending" && isProcessing && (
+                  <Clock
+                    className="h-4 w-4 text-gray-500"
+                    aria-label="Waiting"
+                  />
                 )}
 
                 {!isProcessing && (
@@ -313,6 +365,31 @@ export default function BatchProcessingPage() {
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {/* Overall progress bar during processing */}
+      {isProcessing && fileProgress.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-gray-400">
+            <span>Overall progress</span>
+            <span>
+              {fileProgress.filter((fp) => fp.status === "completed").length} /{" "}
+              {fileProgress.length} files
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-gray-700">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all duration-500"
+              style={{
+                width: `${Math.round(
+                  (fileProgress.filter((fp) => fp.status === "completed").length /
+                    fileProgress.length) *
+                    100
+                )}%`,
+              }}
+            />
+          </div>
         </div>
       )}
 

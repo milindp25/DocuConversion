@@ -9,7 +9,7 @@
 
 import React from "react";
 
-import { FileText, Layers } from "lucide-react";
+import { FileText, Layers, Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/format";
@@ -33,6 +33,14 @@ export interface EditorCanvasProps {
   totalPages: number;
   /** Current zoom level (percentage) */
   zoom: number;
+  /** URL for the rendered preview image of the current page */
+  previewImageUrl?: string | null;
+  /** Whether the preview image is currently loading */
+  isLoadingPreview?: boolean;
+  /** Error message if preview loading failed */
+  previewError?: string | null;
+  /** Callback to navigate to a different page (fetches new preview) */
+  onPageChange?: (page: number) => void;
 }
 
 /**
@@ -91,6 +99,10 @@ export function EditorCanvas({
   currentPage,
   totalPages,
   zoom,
+  previewImageUrl,
+  isLoadingPreview,
+  previewError,
+  onPageChange,
 }: EditorCanvasProps) {
   /** Filter annotations for the current page */
   const pageAnnotations = annotations.filter(
@@ -135,33 +147,95 @@ export function EditorCanvas({
         </div>
       </div>
 
-      {/* PDF preview area (placeholder for Phase 1) */}
+      {/* PDF preview area */}
       <div
-        className="relative flex min-h-[400px] items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
+        className="relative flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-950"
         role="img"
         aria-label={`PDF preview: ${file.name}, page ${currentPage} of ${totalPages}`}
       >
-        {/* Visual PDF page placeholder */}
-        <div
-          className="flex flex-col items-center justify-center"
-          style={{
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: "center center",
-          }}
-        >
-          <div className="flex h-[500px] w-[360px] flex-col items-center justify-center rounded border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-900">
-            <FileText
-              className="mb-3 h-16 w-16 text-gray-200 dark:text-gray-700"
+        {/* Loading state */}
+        {isLoadingPreview && (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <Loader2
+              className="h-8 w-8 animate-spin text-purple-500"
               aria-hidden="true"
             />
-            <p className="mb-1 text-sm font-medium text-gray-400 dark:text-gray-500">
-              {file.name}
-            </p>
-            <p className="text-xs text-gray-300 dark:text-gray-600">
-              Page {currentPage} of {totalPages}
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Loading PDF preview...
             </p>
           </div>
-        </div>
+        )}
+
+        {/* Preview image or enhanced fallback */}
+        {!isLoadingPreview && (
+          <div
+            className="flex flex-col items-center justify-center py-4"
+            style={{
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: "center center",
+            }}
+          >
+            {previewImageUrl ? (
+              <img
+                src={previewImageUrl}
+                alt={`Page ${currentPage} of ${file.name}`}
+                className="max-h-[560px] rounded border border-gray-200 shadow-md dark:border-gray-600"
+                draggable={false}
+              />
+            ) : (
+              <div className="flex h-[500px] w-[360px] flex-col items-center justify-center rounded border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-900">
+                <FileText
+                  className="mb-4 h-20 w-20 text-purple-200 dark:text-purple-900"
+                  aria-hidden="true"
+                />
+                <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {file.name}
+                </p>
+                <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+                  PDF loaded &middot; {totalPages}{" "}
+                  {totalPages === 1 ? "page" : "pages"}
+                </p>
+                {previewError && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-500">
+                    <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Preview unavailable</span>
+                  </div>
+                )}
+                <p className="mt-2 max-w-[260px] text-center text-xs text-gray-400 dark:text-gray-500">
+                  Add annotations using the panel on the right. They will be
+                  applied to the actual PDF on download.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Page navigation */}
+        {!isLoadingPreview && totalPages > 1 && (
+          <div className="flex items-center gap-3 pb-4">
+            <button
+              type="button"
+              onClick={() => onPageChange?.(currentPage - 1)}
+              disabled={currentPage <= 1}
+              aria-label="Previous page"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => onPageChange?.(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              aria-label="Next page"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Annotations on this page */}

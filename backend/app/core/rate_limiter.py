@@ -16,8 +16,8 @@ from datetime import date
 _usage_counter: dict[tuple[str, str], int] = defaultdict(int)
 
 TIER_LIMITS: dict[str, float] = {
-    "anonymous": 5,
-    "free": 20,
+    "anonymous": 50,
+    "free": 100,
     "premium": float("inf"),
     "enterprise": float("inf"),
 }

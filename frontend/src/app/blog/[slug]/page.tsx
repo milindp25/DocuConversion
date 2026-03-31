@@ -74,6 +74,54 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ctaHref: "/tools/sign/sign-pdf",
     ctaLabel: "Sign a PDF now",
   },
+  "merge-pdf-guide": {
+    slug: "merge-pdf-guide",
+    title: "How to Merge PDF Files Online — Step by Step Guide",
+    date: "2024-11-28",
+    author: "DocuConversion Team",
+    description:
+      "Combine multiple PDF documents into a single file in seconds.",
+    body: [
+      "Merging PDFs is one of the most requested document operations in both personal and professional settings. Whether you need to combine scanned receipts into a single expense report, assemble chapters of a manuscript, or bundle contract attachments for a client, a reliable merge tool saves hours of manual work. The key is finding a solution that preserves page order, bookmarks, and hyperlinks while producing a clean output file.",
+      "The process is straightforward: select the PDF files you want to combine, arrange them in the desired order, and click merge. Most online tools let you drag and drop files to reorder them before processing. Pay attention to page orientation — if some documents are landscape and others portrait, the merged file will retain each page's original orientation, which is usually the desired behavior.",
+      "For large merges involving dozens of files, batch upload support is essential. Look for a tool that accepts multiple files at once rather than forcing you to add them one by one. After merging, review the output to confirm that all pages appear in the correct sequence and that no content was lost. Bookmarks from individual files are typically preserved as nested entries in the merged document's table of contents.",
+      "Security is another consideration when merging sensitive documents online. Choose a service that processes files on the server without storing them permanently, and that uses encrypted connections for upload and download. With the right tool, merging PDFs takes only a few seconds regardless of file count or total size.",
+    ],
+    ctaHref: "/tools/organize/merge",
+    ctaLabel: "Merge your PDFs now",
+  },
+  "watermark-pdf-guide": {
+    slug: "watermark-pdf-guide",
+    title: "How to Add Watermarks to PDF Documents",
+    date: "2024-11-20",
+    author: "DocuConversion Team",
+    description:
+      "Protect your intellectual property and brand your documents with watermarks.",
+    body: [
+      "Watermarks serve two primary purposes: branding and protection. A subtle company logo or name stamped across each page reinforces your brand identity every time someone opens the document. A bold DRAFT or CONFIDENTIAL watermark signals the document's status and discourages unauthorized distribution. In either case, adding a watermark to a PDF is a simple operation that can be applied to single files or entire batches.",
+      "Text watermarks are the most common type. You choose the text content, font size, color, opacity, and rotation angle. A semi-transparent diagonal watermark is the classic approach — visible enough to identify the source but not so prominent that it obscures the underlying content. For a more polished look, image watermarks let you stamp a logo or custom graphic onto every page.",
+      "Placement matters more than most people realize. A watermark that covers the center of the page is hardest to crop out but may interfere with reading. A watermark positioned in the bottom corner is less intrusive but easier to remove. Many tools offer both a tiled option, which repeats the watermark across the entire page, and a single-stamp option that places it once per page at a position you specify.",
+      "When applying watermarks to sensitive documents, make sure the watermark is embedded in the PDF content stream rather than added as a removable annotation. This ensures that recipients cannot simply delete the watermark layer. Upload your PDF, configure the watermark settings, and download the protected file — the entire process takes just a few clicks.",
+    ],
+    ctaHref: "/tools/edit/watermark",
+    ctaLabel: "Add a watermark to your PDF",
+  },
+  "ai-pdf-tools": {
+    slug: "ai-pdf-tools",
+    title: "AI-Powered PDF Tools: The Future of Document Processing",
+    date: "2024-11-15",
+    author: "DocuConversion Team",
+    description:
+      "Discover how AI is transforming PDF workflows from OCR to smart document comparison.",
+    body: [
+      "Artificial intelligence is reshaping the way we work with documents. Traditional PDF tools rely on deterministic algorithms that follow rigid rules — extract text here, draw a box there. AI-powered tools, by contrast, understand document structure, recognize patterns, and make intelligent decisions about formatting, layout, and content extraction. The result is higher accuracy, fewer manual corrections, and faster turnaround times.",
+      "One of the biggest breakthroughs is in optical character recognition. Legacy OCR engines struggle with handwriting, low-resolution scans, and complex layouts that mix text with images and tables. Modern AI-based OCR models are trained on millions of document samples and achieve near-human accuracy even on challenging inputs. They can detect column boundaries, reconstruct table structures, and preserve reading order across multi-column pages.",
+      "AI also powers smart document comparison, which goes beyond simple text diffing. Instead of flagging every whitespace change, an AI-driven comparison tool understands semantic equivalence — it knows that reformatting a paragraph without changing its meaning is not a meaningful difference. This dramatically reduces noise in legal, financial, and regulatory review workflows where precision matters.",
+      "Looking ahead, expect AI to handle increasingly complex document tasks: auto-filling forms based on extracted data, translating PDFs while preserving layout, and summarizing lengthy reports into concise briefs. The tools are already here for many of these capabilities, and they continue to improve with every model generation. Try an AI-powered PDF workflow today and experience the difference firsthand.",
+    ],
+    ctaHref: "/tools/advanced/compare",
+    ctaLabel: "Try AI-powered PDF comparison",
+  },
 };
 
 /** Pre-render all known blog article slugs at build time */

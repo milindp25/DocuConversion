@@ -65,6 +65,10 @@ export default function PdfToWordPage() {
           isComplete={job.status === "completed"}
           isError={job.status === "failed"}
           errorMessage={job.errorMessage}
+          onRetry={() => {
+            reset();
+            setFile(null);
+          }}
         />
       )}
 
@@ -73,6 +77,10 @@ export default function PdfToWordPage() {
           <DownloadButton
             downloadUrl={job.downloadUrl}
             fileName={file?.name.replace(/\.pdf$/i, ".docx") ?? "document.docx"}
+            onReset={() => {
+              reset();
+              setFile(null);
+            }}
           />
         </div>
       )}

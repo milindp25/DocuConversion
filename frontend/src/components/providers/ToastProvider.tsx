@@ -10,6 +10,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   useMemo,
 } from "react";
@@ -47,6 +48,22 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  /**
+   * Listens for custom "docuconversion:toast" events dispatched by hooks
+   * (e.g., useFileProcessor) that cannot access React context directly.
+   */
+  useEffect(() => {
+    const handleToastEvent = (e: Event) => {
+      const { type, message } = (e as CustomEvent<{ type: string; message: string }>).detail;
+      const variant: ToastVariant =
+        type === "success" ? "success" : type === "error" ? "error" : "info";
+      addToast(message, variant);
+    };
+
+    window.addEventListener("docuconversion:toast", handleToastEvent);
+    return () => window.removeEventListener("docuconversion:toast", handleToastEvent);
+  }, [addToast]);
 
   const contextValue = useMemo(() => ({ addToast }), [addToast]);
 

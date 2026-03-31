@@ -879,13 +879,37 @@ class ConversionService:
                             # Blank row between tables
                             row_cursor += 1
                     else:
-                        # Fallback: write each text line into column A
-                        text = page.get_text("text")
-                        for line in text.split("\n"):
-                            stripped = line.strip()
-                            if stripped:
-                                ws.cell(row=row_cursor, column=1, value=stripped)
-                                row_cursor += 1
+                        # Fallback: detect column structure using text positions
+                        blocks = page.get_text("dict")["blocks"]
+                        rows: dict[float, list[tuple[float, str]]] = {}
+
+                        for block in blocks:
+                            if block.get("type") != 0:  # Skip image blocks
+                                continue
+                            for line in block.get("lines", []):
+                                # Group lines by y-center (rounded) to form rows
+                                y_center = round(
+                                    (line["bbox"][1] + line["bbox"][3]) / 2, 0
+                                )
+                                line_text = " ".join(
+                                    span["text"] for span in line["spans"]
+                                ).strip()
+                                x_pos = line["bbox"][0]
+                                if line_text:
+                                    if y_center not in rows:
+                                        rows[y_center] = []
+                                    rows[y_center].append((x_pos, line_text))
+
+                        # Write rows sorted by y-position, columns by x-position
+                        for y_pos in sorted(rows.keys()):
+                            cols = sorted(rows[y_pos], key=lambda c: c[0])
+                            for col_idx, (_, text) in enumerate(cols, start=1):
+                                ws.cell(
+                                    row=row_cursor,
+                                    column=col_idx,
+                                    value=text,
+                                )
+                            row_cursor += 1
 
                 # Remove the default empty sheet created by Workbook()
                 if sheets_created > 0 and "Sheet" in wb.sheetnames:

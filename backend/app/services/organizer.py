@@ -7,6 +7,7 @@ adding, and removing pages.
 """
 
 import logging
+import shutil
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -142,23 +143,39 @@ class OrganizationService:
 
             original_size = input_path.stat().st_size
             compressed_size = output_path.stat().st_size
-            reduction = (
-                ((original_size - compressed_size) / original_size) * 100
-                if original_size > 0
-                else 0.0
-            )
 
-            logger.info(
-                "PDF compressed: %.1f%% reduction (%d KB -> %d KB)",
-                reduction,
-                original_size // 1024,
-                compressed_size // 1024,
-            )
+            if compressed_size >= original_size:
+                # Compression didn't help -- return the original unchanged
+                shutil.copy2(str(input_path), str(output_path))
+                compressed_size = original_size
+                reduction = 0.0
+                logger.info(
+                    "PDF already optimized (%d KB), returning original",
+                    original_size // 1024,
+                )
+            else:
+                reduction = (
+                    ((original_size - compressed_size) / original_size) * 100
+                    if original_size > 0
+                    else 0.0
+                )
+                logger.info(
+                    "PDF compressed: %.1f%% reduction (%d KB -> %d KB)",
+                    reduction,
+                    original_size // 1024,
+                    compressed_size // 1024,
+                )
+
             return {
                 "path": output_path,
                 "original_size_kb": round(original_size / 1024, 1),
                 "compressed_size_kb": round(compressed_size / 1024, 1),
                 "reduction_percent": round(reduction, 1),
+                "message": (
+                    "File is already optimized"
+                    if reduction == 0.0
+                    else f"Reduced by {round(reduction, 1)}%"
+                ),
             }
 
         except Exception as e:
