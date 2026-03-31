@@ -11,6 +11,7 @@ import { Footer } from "@/components/layout/Footer";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { GlobalDropZone } from "@/components/tools/GlobalDropZone";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import "./globals.css";
 
@@ -43,6 +44,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: "DocuConversion",
+            url: "https://docuconversion.com",
+            description:
+              "Convert, edit, sign, and organize PDFs — free, fast, private.",
+            applicationCategory: "Productivity",
+            operatingSystem: "Web",
+            offers: {
+              "@type": "Offer",
+              price: "0",
+              priceCurrency: "USD",
+            },
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
         <AuthProvider>
           <ToastProvider>

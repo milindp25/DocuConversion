@@ -353,6 +353,68 @@ class OrganizationService:
             ) from e
 
     @staticmethod
+    async def add_bookmarks(
+        input_path: Path, output_path: Path, bookmarks: list[dict]
+    ) -> Path:
+        """Add bookmarks (table of contents) to a PDF.
+
+        Each bookmark dict has:
+            title (str): Display text for the bookmark.
+            page (int): Target page number, 1-indexed.
+            level (int): Nesting depth, 0 = top-level.
+
+        PyMuPDF's ``set_toc`` expects a list of ``[level, title, page]``
+        entries where level starts at 1 (not 0), so we add 1 internally.
+
+        Args:
+            input_path: Path to the source PDF.
+            output_path: Where to save the bookmarked PDF.
+            bookmarks: List of bookmark dicts with title, page, and level.
+
+        Returns:
+            Path to the output PDF with bookmarks added.
+
+        Raises:
+            OrganizationError: If adding bookmarks fails.
+        """
+        try:
+            with fitz.open(str(input_path)) as doc:
+                total_pages = len(doc)
+
+                # Validate page numbers
+                for bm in bookmarks:
+                    if bm["page"] < 1 or bm["page"] > total_pages:
+                        raise OrganizationError(
+                            f"Bookmark page {bm['page']} is out of range. "
+                            f"Document has {total_pages} pages."
+                        )
+
+                # Build TOC list: [level (1-based), title, page]
+                toc = [
+                    [bm["level"] + 1, bm["title"], bm["page"]]
+                    for bm in bookmarks
+                ]
+
+                doc.set_toc(toc)
+                doc.save(str(output_path))
+
+            logger.info(
+                "Added %d bookmarks to PDF -> %s",
+                len(bookmarks),
+                output_path.name,
+            )
+            return output_path
+
+        except OrganizationError:
+            raise
+        except Exception as e:
+            logger.error("PDF bookmark addition failed: %s", str(e))
+            raise OrganizationError(
+                "Failed to add bookmarks to the PDF. "
+                "The file may be corrupted or the bookmark data is invalid."
+            ) from e
+
+    @staticmethod
     async def add_pages(
         input_path: Path,
         insert_path: Path,

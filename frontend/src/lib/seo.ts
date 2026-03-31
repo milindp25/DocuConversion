@@ -41,3 +41,30 @@ export function generateToolMetadata(tool: ToolMetadataInput): Metadata {
     },
   };
 }
+
+/**
+ * Generates JSON-LD structured data for a tool page.
+ * Returns a Schema.org SoftwareApplication object that search engines
+ * use for rich result snippets.
+ *
+ * @param tool - Tool page metadata input
+ * @returns JSON-LD object suitable for the JsonLd component
+ */
+export function generateToolJsonLd(
+  tool: ToolMetadataInput
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: `${tool.title} — DocuConversion`,
+    description: tool.description,
+    url: `https://docuconversion.com${tool.path}`,
+    applicationCategory: "Productivity",
+    operatingSystem: "Web",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+  };
+}

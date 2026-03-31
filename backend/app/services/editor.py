@@ -593,3 +593,109 @@ class EditingService:
                 "Failed to add freehand drawings to the PDF. "
                 "The file may be corrupted or contain unsupported content."
             ) from e
+
+    @staticmethod
+    async def get_form_fields(input_path: Path) -> list[dict]:
+        """Extract all fillable form fields from a PDF.
+
+        Iterates every page and collects widget annotations (form fields)
+        with their name, type, current value, and page number.
+
+        Args:
+            input_path: Path to the source PDF file.
+
+        Returns:
+            List of dicts with keys: name, type, current_value, page.
+
+        Raises:
+            EditingError: If field extraction fails.
+        """
+        try:
+            fields: list[dict] = []
+            with fitz.open(str(input_path)) as doc:
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    for widget in page.widgets():
+                        field_type_map = {
+                            fitz.PDF_WIDGET_TYPE_TEXT: "text",
+                            fitz.PDF_WIDGET_TYPE_CHECKBOX: "checkbox",
+                            fitz.PDF_WIDGET_TYPE_COMBOBOX: "combobox",
+                            fitz.PDF_WIDGET_TYPE_LISTBOX: "listbox",
+                            fitz.PDF_WIDGET_TYPE_RADIOBUTTON: "radiobutton",
+                            fitz.PDF_WIDGET_TYPE_PUSHBUTTON: "pushbutton",
+                        }
+                        fields.append(
+                            {
+                                "name": widget.field_name or "",
+                                "type": field_type_map.get(
+                                    widget.field_type, "unknown"
+                                ),
+                                "current_value": widget.field_value or "",
+                                "page": page_num + 1,
+                            }
+                        )
+
+            logger.info(
+                "Extracted %d form fields from PDF: %s",
+                len(fields),
+                input_path.name,
+            )
+            return fields
+
+        except Exception as e:
+            logger.error("Failed to extract form fields: %s", str(e))
+            raise EditingError(
+                "Failed to extract form fields from the PDF. "
+                "The file may be corrupted or not contain any forms."
+            ) from e
+
+    @staticmethod
+    async def fill_form(
+        input_path: Path, output_path: Path, field_values: dict[str, str]
+    ) -> Path:
+        """Fill form fields in a PDF.
+
+        Iterates all pages and widgets, setting the field_value for
+        each widget whose field_name matches a key in field_values.
+
+        Args:
+            input_path: Path to the source PDF file.
+            output_path: Where to save the filled PDF.
+            field_values: Dict mapping field names to values.
+
+        Returns:
+            Path to the filled PDF file.
+
+        Raises:
+            EditingError: If form filling fails.
+        """
+        try:
+            filled_count = 0
+            with fitz.open(str(input_path)) as doc:
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    for widget in page.widgets():
+                        field_name = widget.field_name or ""
+                        if field_name in field_values:
+                            widget.field_value = field_values[field_name]
+                            widget.update()
+                            filled_count += 1
+
+                doc.save(str(output_path))
+
+            logger.info(
+                "Filled %d form fields in PDF: %s -> %s",
+                filled_count,
+                input_path.name,
+                output_path.name,
+            )
+            return output_path
+
+        except EditingError:
+            raise
+        except Exception as e:
+            logger.error("Failed to fill form fields: %s", str(e))
+            raise EditingError(
+                "Failed to fill form fields in the PDF. "
+                "The file may be corrupted or not contain fillable forms."
+            ) from e

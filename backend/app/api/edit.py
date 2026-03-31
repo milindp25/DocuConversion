@@ -28,6 +28,8 @@ from app.core.exceptions import (
     handle_docuconversion_error,
 )
 from app.models.schemas import (
+    FormFieldInfo,
+    FormFieldsResponse,
     FreehandDrawing,
     HighlightAnnotation,
     JobStatus,
@@ -536,6 +538,141 @@ async def add_drawing(
             job_id=job_id,
             status=JobStatus.COMPLETED,
             message=f"Added {len(validated)} freehand drawing(s) to the PDF successfully.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (EditingError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/get-form-fields", response_model=FormFieldsResponse)
+@limiter.limit("10/minute")
+async def get_form_fields(
+    request: Request,
+    file: UploadFile = File(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> FormFieldsResponse:
+    """Extract all fillable form fields from a PDF.
+
+    Returns a list of field metadata (name, type, current value, page)
+    without modifying the document. Useful for inspecting form structure
+    before filling.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        file: The PDF file to inspect (multipart upload).
+
+    Returns:
+        FormFieldsResponse with the list of form fields found.
+    """
+    try:
+        file_content = await validate_pdf_upload(file)
+        safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
+        logger.info("Get form fields started: file=%s", safe_name)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            fields = await EditingService.get_form_fields(input_path)
+
+        validated_fields = [FormFieldInfo(**f) for f in fields]
+
+        return FormFieldsResponse(
+            fields=validated_fields,
+            field_count=len(validated_fields),
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except EditingError as e:
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/fill-form", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def fill_form(
+    request: Request,
+    file: UploadFile = File(...),
+    field_values: str = Form(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Fill form fields in a PDF with the provided values.
+
+    The field_values parameter is a JSON string containing a dict
+    mapping field names to their desired values.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        file: The PDF file with fillable forms (multipart upload).
+        field_values: JSON string dict of {field_name: value} pairs.
+
+    Returns:
+        ProcessingResponse with job ID and status.
+    """
+    try:
+        # Parse and validate field values JSON
+        try:
+            values_dict = json.loads(field_values)
+        except json.JSONDecodeError as e:
+            raise FileValidationError(
+                "Invalid field_values JSON. Please provide a valid JSON object."
+            ) from e
+
+        if not isinstance(values_dict, dict):
+            raise FileValidationError(
+                "field_values must be a JSON object mapping field names to values."
+            )
+
+        if len(values_dict) > 500:
+            raise FileValidationError("Maximum 500 field values allowed per request.")
+
+        # Ensure all values are strings
+        str_values: dict[str, str] = {
+            str(k): str(v) for k, v in values_dict.items()
+        }
+
+        file_content = await validate_pdf_upload(file)
+        safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+        logger.info("Fill form started: job_id=%s, file=%s", job_id, safe_name)
+
+        job_manager.update_progress(job_id, 10, "Validating file...")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            output_path = tmp_path / "output.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Filling form fields...")
+
+            await EditingService.fill_form(input_path, output_path, str_values)
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"edits/{job_id}/output.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message="Form fields filled in the PDF successfully.",
         )
 
     except FileValidationError as e:

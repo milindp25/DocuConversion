@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { uploadFile, apiRequest } from "@/lib/api-client";
+import { saveToHistory } from "@/lib/file-history";
 import type { ProcessingJob, JobStatus } from "@/types";
 
 /** Configuration options for useFileProcessor */
@@ -108,6 +109,17 @@ export function useFileProcessor({
           if (status.status === "completed" || status.status === "failed") {
             stopPolling();
             setIsProcessing(false);
+
+            // Persist completed jobs to localStorage for dashboard history
+            if (status.status === "completed" && status.download_url) {
+              saveToHistory({
+                id: status.job_id,
+                filename: fileName,
+                operation: endpoint.replace(/^\//, "").replace(/\//g, " > "),
+                date: new Date().toISOString(),
+                downloadUrl: status.download_url,
+              });
+            }
           }
         } catch {
           stopPolling();

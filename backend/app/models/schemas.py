@@ -372,3 +372,43 @@ class ApiUsageResponse(BaseModel):
     key_name: str = Field(description="Name of the API key")
     requests_today: int = Field(description="Number of requests made today")
     daily_limit: int = Field(description="Maximum requests per day")
+
+
+class BookmarkEntry(BaseModel):
+    """A single bookmark (table of contents entry) to add to a PDF.
+
+    Bookmarks appear in the PDF viewer's sidebar navigation panel
+    and allow readers to jump directly to a specific page.
+    """
+
+    title: str = Field(
+        min_length=1,
+        max_length=200,
+        description="Bookmark display title",
+    )
+    page: int = Field(
+        ge=1,
+        description="Target page number (1-indexed)",
+    )
+    level: int = Field(
+        default=0,
+        ge=0,
+        le=5,
+        description="Nesting level (0 = top-level, 1 = child, etc.)",
+    )
+
+
+class FormFieldInfo(BaseModel):
+    """Metadata for a single fillable form field in a PDF."""
+
+    name: str = Field(description="Form field name")
+    type: str = Field(description="Field type (text, checkbox, combobox, etc.)")
+    current_value: str = Field(description="Current value of the field")
+    page: int = Field(ge=1, description="Page number where the field is located (1-indexed)")
+
+
+class FormFieldsResponse(BaseModel):
+    """Response listing all fillable form fields in a PDF."""
+
+    fields: list[FormFieldInfo] = Field(description="List of form fields found")
+    field_count: int = Field(description="Total number of form fields")

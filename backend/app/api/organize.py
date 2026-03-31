@@ -28,7 +28,7 @@ from app.core.exceptions import (
     StorageError,
     handle_docuconversion_error,
 )
-from app.models.schemas import JobStatus, ProcessingResponse
+from app.models.schemas import BookmarkEntry, JobStatus, ProcessingResponse
 from app.services.job_manager import job_manager
 from app.services.organizer import OrganizationService
 from app.services.storage import get_storage
@@ -616,6 +616,103 @@ async def add_pages_to_pdf(
             job_id=job_id,
             status=JobStatus.COMPLETED,
             message=f"Pages inserted successfully after page {after_page}.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (OrganizationError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/add-bookmarks", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def add_bookmarks(
+    request: Request,
+    file: UploadFile = File(...),
+    bookmarks: str = Form(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Add bookmarks (table of contents) to a PDF document.
+
+    Bookmarks appear in the PDF viewer's sidebar navigation and allow
+    readers to jump directly to specific pages.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        file: The PDF file to add bookmarks to (multipart upload).
+        bookmarks: JSON array of bookmark objects, each with ``title`` (str),
+                   ``page`` (int, 1-indexed), and optional ``level``
+                   (int, 0 = top-level).
+
+    Returns:
+        ProcessingResponse with job ID and download URL on success.
+    """
+    try:
+        validate_file_extension(file.filename or "", [".pdf"])
+        file_content = await validate_upload_file(file)
+
+        # Parse and validate bookmarks JSON
+        try:
+            bookmarks_raw = json_module.loads(bookmarks)
+            if not isinstance(bookmarks_raw, list):
+                raise ValueError("bookmarks must be a JSON array")
+            # Validate each entry through the Pydantic model
+            validated: list[dict] = []
+            for entry in bookmarks_raw:
+                bm = BookmarkEntry(**entry)
+                validated.append(bm.model_dump())
+        except (json_module.JSONDecodeError, ValueError, TypeError) as e:
+            raise FileValidationError(
+                f"Invalid bookmarks format: {e}. "
+                "Provide a JSON array of objects with title, page, and level."
+            ) from e
+
+        if not validated:
+            raise FileValidationError(
+                "At least one bookmark is required."
+            )
+
+        safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+        logger.info(
+            "Add bookmarks started: job_id=%s, file=%s, count=%d",
+            job_id, safe_name, len(validated),
+        )
+
+        job_manager.update_progress(job_id, 10, "Validating file...")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            output_path = tmp_path / "bookmarked.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Adding bookmarks...")
+
+            await OrganizationService.add_bookmarks(
+                input_path, output_path, validated
+            )
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"organize/{job_id}/bookmarked.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message=f"Successfully added {len(validated)} bookmark(s) to the PDF.",
         )
 
     except FileValidationError as e:

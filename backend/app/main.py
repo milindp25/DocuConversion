@@ -13,7 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from app.api import ai, advanced, convert, developer, edit, jobs, organize, preview, share, sign, secure
+from app.api import ai, advanced, convert, developer, edit, jobs, organize, payments, preview, share, sign, secure
 from app.core.config import settings
 
 # Disable OpenAPI docs in production to reduce attack surface
@@ -59,6 +59,7 @@ app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(advanced.router, prefix="/api/advanced", tags=["Advanced"])
 app.include_router(share.router, prefix="/api/share", tags=["Share"])
 app.include_router(developer.router, prefix="/api/developer", tags=["Developer"])
+app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
 
 
 @app.get("/health", tags=["Health"])

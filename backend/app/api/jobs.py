@@ -7,8 +7,11 @@ progress and results of processing jobs.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.core.auth import UserClaims
+from app.core.dependencies import get_optional_user
+from app.core.rate_limiter import get_usage
 from app.models.schemas import JobStatusResponse
 from app.services.job_manager import job_manager
 
@@ -44,3 +47,28 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
 
     logger.debug("Job status queried: %s -> %s (%d%%)", job_id, job.status, job.progress)
     return job.to_response()
+
+
+@router.get("/usage")
+async def get_usage_stats(
+    request: Request,
+    user: UserClaims | None = Depends(get_optional_user),
+) -> dict:
+    """Get current daily usage stats for the user.
+
+    Returns the number of operations used today, the daily limit,
+    and remaining operations based on the user's subscription tier.
+
+    Args:
+        request: The incoming FastAPI request.
+        user: The authenticated user, or None for anonymous access.
+
+    Returns:
+        Dictionary with tier, used, limit, and remaining counts.
+    """
+    tier = user.tier if user else "anonymous"
+    client_ip = request.client.host if request.client else "unknown"
+    user_id = user.user_id if user else None
+
+    usage = get_usage(user_id, tier, client_ip)
+    return {"tier": tier, **usage}

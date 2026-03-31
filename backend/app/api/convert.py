@@ -19,6 +19,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 from app.core.auth import UserClaims
 from app.core.dependencies import get_optional_user
+from app.core.tier_middleware import check_tier_limit
 from app.core.exceptions import (
     ConversionError,
     FileValidationError,
@@ -49,6 +50,7 @@ async def convert_pdf_to_word(
     request: Request,
     file: UploadFile = File(...),
     user: UserClaims | None = Depends(get_optional_user),
+    _tier_check: None = Depends(check_tier_limit),
 ) -> ProcessingResponse:
     """Convert a PDF document to Word (.docx) format.
 
@@ -178,6 +180,7 @@ async def convert_pdf_to_excel(
     request: Request,
     file: UploadFile = File(...),
     user: UserClaims | None = Depends(get_optional_user),
+    _tier_check: None = Depends(check_tier_limit),
 ) -> ProcessingResponse:
     """Convert a PDF document to Excel (.xlsx) format.
 
@@ -242,6 +245,7 @@ async def convert_pdf_to_image(
     request: Request,
     file: UploadFile = File(...),
     user: UserClaims | None = Depends(get_optional_user),
+    _tier_check: None = Depends(check_tier_limit),
 ) -> ProcessingResponse:
     """Convert PDF pages to high-quality PNG images bundled as a ZIP.
 
