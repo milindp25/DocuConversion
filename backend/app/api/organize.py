@@ -1,11 +1,13 @@
 """
 PDF organization API endpoints.
 
-Handles structural operations: merge, split, compress, rotate, reorder.
-These operations manipulate pages without changing page content.
-All endpoints perform end-to-end processing with job tracking and R2 upload.
+Handles structural operations: merge, split, compress, rotate, reorder,
+add pages, and remove pages. These operations manipulate pages without
+changing page content. All endpoints perform end-to-end processing with
+job tracking and R2 upload.
 """
 
+import json as json_module
 import logging
 import re
 import tempfile
@@ -407,8 +409,6 @@ async def reorder_pages(
         page_order: JSON array of 1-indexed page numbers in desired order,
                     e.g. ``[3, 1, 2]`` puts page 3 first.
     """
-    import json as json_module
-
     try:
         validate_file_extension(file.filename or "", [".pdf"])
         file_content = await validate_upload_file(file)
@@ -451,6 +451,171 @@ async def reorder_pages(
             job_id=job_id,
             status=JobStatus.COMPLETED,
             message=f"PDF pages reordered successfully ({len(order)} pages).",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (OrganizationError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/remove-pages", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def remove_pages_from_pdf(
+    request: Request,
+    file: UploadFile = File(...),
+    pages: str = Form(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Remove specified pages from a PDF document.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        file: The PDF file to modify (multipart upload).
+        pages: JSON array of 1-indexed page numbers to remove,
+               e.g. ``[1, 3, 5]``.
+
+    Returns:
+        ProcessingResponse with job ID and download URL on success.
+    """
+    try:
+        validate_file_extension(file.filename or "", [".pdf"])
+        file_content = await validate_upload_file(file)
+
+        # Parse pages from JSON string
+        try:
+            pages_list = json_module.loads(pages)
+            if not isinstance(pages_list, list) or not all(
+                isinstance(p, int) for p in pages_list
+            ):
+                raise ValueError("pages must be a JSON array of integers")
+        except (json_module.JSONDecodeError, ValueError) as e:
+            raise FileValidationError(
+                f"Invalid pages format: {e}. "
+                "Provide a JSON array of page numbers, e.g. [1, 3, 5]."
+            ) from e
+
+        safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+        logger.info(
+            "Remove pages started: job_id=%s, file=%s, pages=%s",
+            job_id, safe_name, pages_list,
+        )
+
+        job_manager.update_progress(job_id, 10, "Validating file...")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            output_path = tmp_path / "pages_removed.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Removing pages...")
+
+            await OrganizationService.remove_pages(
+                input_path, output_path, pages_list
+            )
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"organize/{job_id}/pages_removed.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message=f"Successfully removed {len(pages_list)} page(s) from the PDF.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (OrganizationError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/add-pages", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def add_pages_to_pdf(
+    request: Request,
+    file: UploadFile = File(...),
+    insert_file: UploadFile = File(...),
+    after_page: int = Form(default=0),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Insert pages from one PDF into another at a specified position.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        file: The main PDF file (multipart upload).
+        insert_file: The PDF whose pages will be inserted (multipart upload).
+        after_page: Insert after this page number (1-indexed).
+                    Use 0 to insert at the beginning.
+
+    Returns:
+        ProcessingResponse with job ID and download URL on success.
+    """
+    try:
+        validate_file_extension(file.filename or "", [".pdf"])
+        file_content = await validate_upload_file(file)
+
+        validate_file_extension(insert_file.filename or "", [".pdf"])
+        insert_content = await validate_upload_file(insert_file)
+
+        safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+        logger.info(
+            "Add pages started: job_id=%s, file=%s, after_page=%d",
+            job_id, safe_name, after_page,
+        )
+
+        job_manager.update_progress(job_id, 10, "Validating files...")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            insert_path = tmp_path / "insert.pdf"
+            output_path = tmp_path / "pages_added.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+            with open(insert_path, "wb") as f:
+                f.write(insert_content)
+
+            job_manager.update_progress(job_id, 30, "Inserting pages...")
+
+            await OrganizationService.add_pages(
+                input_path, insert_path, output_path, after_page=after_page
+            )
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"organize/{job_id}/pages_added.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message=f"Pages inserted successfully after page {after_page}.",
         )
 
     except FileValidationError as e:

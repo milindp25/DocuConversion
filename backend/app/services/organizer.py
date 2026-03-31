@@ -2,7 +2,8 @@
 PDF organization service.
 
 Handles structural operations on PDFs: merging multiple files,
-splitting into parts, compressing file size, rotating and reordering pages.
+splitting into parts, compressing file size, rotating, reordering,
+adding, and removing pages.
 """
 
 import logging
@@ -18,8 +19,9 @@ logger = logging.getLogger(__name__)
 class OrganizationService:
     """Service for PDF structural operations.
 
-    Merging, splitting, compressing, rotating, and reordering operate
-    on the page structure without modifying individual page content.
+    Merging, splitting, compressing, rotating, reordering, adding,
+    and removing pages operate on the page structure without modifying
+    individual page content.
     """
 
     @staticmethod
@@ -283,4 +285,127 @@ class OrganizationService:
             raise OrganizationError(
                 "Failed to reorder PDF pages. "
                 "The file may be corrupted or the page order is invalid."
+            ) from e
+
+    @staticmethod
+    async def remove_pages(
+        input_path: Path, output_path: Path, pages_to_remove: list[int]
+    ) -> Path:
+        """Remove specified pages from a PDF.
+
+        Args:
+            input_path: Path to the source PDF.
+            output_path: Where to save the result.
+            pages_to_remove: List of 1-indexed page numbers to remove.
+
+        Returns:
+            Path to the output PDF with pages removed.
+
+        Raises:
+            OrganizationError: If removal fails or page numbers are invalid.
+        """
+        try:
+            with fitz.open(str(input_path)) as doc:
+                total = len(doc)
+
+                if not pages_to_remove:
+                    raise OrganizationError(
+                        "No pages specified for removal."
+                    )
+
+                # Validate page numbers
+                for p in pages_to_remove:
+                    if p < 1 or p > total:
+                        raise OrganizationError(
+                            f"Page {p} is out of range. "
+                            f"Document has {total} pages."
+                        )
+
+                if len(set(pages_to_remove)) >= total:
+                    raise OrganizationError(
+                        "Cannot remove all pages from the document. "
+                        "At least one page must remain."
+                    )
+
+                # Convert to 0-indexed and sort descending for safe deletion
+                zero_indexed = sorted(
+                    {p - 1 for p in pages_to_remove}, reverse=True
+                )
+                for page_idx in zero_indexed:
+                    doc.delete_page(page_idx)
+
+                doc.save(str(output_path))
+
+            logger.info(
+                "Removed %d pages from PDF -> %s",
+                len(pages_to_remove),
+                output_path.name,
+            )
+            return output_path
+
+        except OrganizationError:
+            raise
+        except Exception as e:
+            logger.error("PDF page removal failed: %s", str(e))
+            raise OrganizationError(
+                "Failed to remove pages from the PDF. "
+                "The file may be corrupted or the page numbers are invalid."
+            ) from e
+
+    @staticmethod
+    async def add_pages(
+        input_path: Path,
+        insert_path: Path,
+        output_path: Path,
+        after_page: int = 0,
+    ) -> Path:
+        """Insert pages from one PDF into another.
+
+        Args:
+            input_path: The main PDF to insert pages into.
+            insert_path: The PDF whose pages will be inserted.
+            output_path: Where to save the combined result.
+            after_page: Insert after this page (1-indexed, 0 means at start).
+
+        Returns:
+            Path to the output PDF with inserted pages.
+
+        Raises:
+            OrganizationError: If insertion fails or parameters are invalid.
+        """
+        try:
+            with fitz.open(str(input_path)) as doc:
+                total = len(doc)
+
+                if after_page < 0 or after_page > total:
+                    raise OrganizationError(
+                        f"Insert position {after_page} is out of range. "
+                        f"Must be between 0 and {total} (document has {total} pages)."
+                    )
+
+                with fitz.open(str(insert_path)) as insert_doc:
+                    if len(insert_doc) == 0:
+                        raise OrganizationError(
+                            "The PDF to insert contains no pages."
+                        )
+
+                    # insert_pdf's start_at is 0-indexed page position
+                    doc.insert_pdf(insert_doc, start_at=after_page)
+
+                doc.save(str(output_path))
+
+            logger.info(
+                "Inserted pages after page %d -> %s",
+                after_page,
+                output_path.name,
+            )
+            return output_path
+
+        except OrganizationError:
+            raise
+        except Exception as e:
+            logger.error("PDF page insertion failed: %s", str(e))
+            raise OrganizationError(
+                "Failed to insert pages into the PDF. "
+                "One or both files may be corrupted."
             ) from e

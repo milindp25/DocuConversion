@@ -2,8 +2,9 @@
 E-signature API endpoints.
 
 Handles electronic signature operations: placing uploaded signature
-images onto PDF documents at specified coordinates. Accepts both
-the PDF and signature image as separate multipart uploads.
+images onto PDF documents at specified coordinates, and generating
+signature images from text. Accepts both the PDF and signature image
+as separate multipart uploads for placement.
 """
 
 import logging
@@ -155,6 +156,93 @@ async def apply_signature(
             job_id=job_id,
             status=JobStatus.COMPLETED,
             message="Signature applied to the PDF successfully.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (SignatureError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/generate-signature", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def generate_text_signature(
+    request: Request,
+    text: str = Form(...),
+    font_style: str = Form(default="cursive"),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Generate a signature image from text.
+
+    Renders the provided text in a calligraphic/script style and
+    returns a transparent PNG image. The generated image can then
+    be used with the ``/apply`` endpoint to place it on a PDF.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        text: The signature text to render (e.g. a person's name).
+        font_style: Visual style -- ``"cursive"``, ``"formal"``, or
+            ``"casual"``.
+
+    Returns:
+        ProcessingResponse with job ID and download URL for the PNG.
+    """
+    try:
+        if not text or not text.strip():
+            raise FileValidationError(
+                "Signature text must not be empty."
+            )
+
+        if len(text) > 200:
+            raise FileValidationError(
+                "Signature text must be 200 characters or fewer."
+            )
+
+        valid_styles = ("cursive", "formal", "casual")
+        if font_style not in valid_styles:
+            raise FileValidationError(
+                f"Invalid font style '{font_style}'. "
+                f"Choose from: {', '.join(valid_styles)}."
+            )
+
+        job_id, _client_token = job_manager.create_job(
+            "text_signature.png",
+            user_id=user.user_id if user else None,
+        )
+        logger.info(
+            "Generate text signature started: job_id=%s, style=%s",
+            job_id, font_style,
+        )
+
+        job_manager.update_progress(job_id, 10, "Generating signature...")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            output_path = tmp_path / "signature.png"
+
+            job_manager.update_progress(job_id, 30, "Rendering text...")
+
+            await SignatureService.generate_text_signature(
+                text=text.strip(),
+                output_path=output_path,
+                font_style=font_style,
+            )
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"signatures/{job_id}/signature.png"
+            await storage.upload_local_file(output_path, r2_key, "image/png")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message="Signature image generated successfully.",
         )
 
     except FileValidationError as e:

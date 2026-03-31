@@ -1009,8 +1009,8 @@ class ConversionService:
             from reportlab.lib.styles import getSampleStyleSheet
             from reportlab.lib import colors
 
-            wb = Workbook()
-            wb = __import__("openpyxl").load_workbook(str(input_path), data_only=True)
+            from openpyxl import load_workbook
+            wb = load_workbook(str(input_path), data_only=True)
 
             pdf_doc = SimpleDocTemplate(
                 str(output_path), pagesize=letter,

@@ -2,8 +2,9 @@
 PDF editing service.
 
 Handles in-place modifications to PDF documents: adding text annotations,
-watermarks, page numbers, highlight regions, and geometric shapes.
-All operations use PyMuPDF for rendering onto existing PDF pages.
+watermarks, page numbers, highlight regions, geometric shapes, and
+freehand ink drawings. All operations use PyMuPDF for rendering onto
+existing PDF pages.
 """
 
 import logging
@@ -508,5 +509,87 @@ class EditingService:
             logger.error("Failed to add shapes: %s", str(e))
             raise EditingError(
                 "Failed to add shapes to the PDF. "
+                "The file may be corrupted or contain unsupported content."
+            ) from e
+
+    @staticmethod
+    async def add_freehand_drawing(
+        input_path: Path, output_path: Path, drawings: list[dict]
+    ) -> Path:
+        """Add freehand ink annotations (polylines) to a PDF.
+
+        Each drawing is rendered as a polyline stroke on the specified
+        page. Points are normalized to [0, 1] and converted to absolute
+        page coordinates internally.
+
+        Args:
+            input_path: Path to the source PDF file.
+            output_path: Where to save the annotated PDF.
+            drawings: List of drawing dicts, each with keys:
+                page (int, 1-indexed), color (str hex), width (float,
+                stroke width in points), points (list of [x, y] pairs
+                with normalized coords in [0, 1]).
+
+        Returns:
+            Path to the annotated PDF file.
+
+        Raises:
+            EditingError: If drawing insertion fails.
+        """
+        try:
+            with fitz.open(str(input_path)) as doc:
+                for drawing in drawings:
+                    page_num = drawing["page"] - 1
+                    if page_num < 0 or page_num >= len(doc):
+                        raise EditingError(
+                            f"Page {drawing['page']} is out of range. "
+                            f"The document has {len(doc)} pages."
+                        )
+
+                    points = drawing.get("points", [])
+                    if len(points) < 2:
+                        raise EditingError(
+                            "Each drawing must have at least 2 points."
+                        )
+
+                    page = doc[page_num]
+                    rect = page.rect
+                    color = _hex_to_rgb(drawing.get("color", "#000000"))
+                    stroke_width = drawing.get("width", 2.0)
+
+                    # Convert normalized coords to absolute page points
+                    abs_points = [
+                        fitz.Point(pt[0] * rect.width, pt[1] * rect.height)
+                        for pt in points
+                    ]
+
+                    shape = page.new_shape()
+                    shape.draw_polyline(abs_points)
+                    shape.finish(
+                        color=color,
+                        width=stroke_width,
+                        closePath=False,
+                        fill=None,
+                        lineCap=1,  # Round caps for natural pen look
+                        lineJoin=1,  # Round joins
+                    )
+                    shape.commit()
+
+                doc.save(str(output_path))
+
+            logger.info(
+                "Added %d freehand drawings to PDF: %s -> %s",
+                len(drawings),
+                input_path.name,
+                output_path.name,
+            )
+            return output_path
+
+        except EditingError:
+            raise
+        except Exception as e:
+            logger.error("Failed to add freehand drawings: %s", str(e))
+            raise EditingError(
+                "Failed to add freehand drawings to the PDF. "
                 "The file may be corrupted or contain unsupported content."
             ) from e

@@ -2,9 +2,9 @@
 PDF editing API endpoints.
 
 Handles operations that modify PDF content: adding text annotations,
-watermarks, page numbers, highlights, and geometric shapes. Each
-endpoint validates the upload, tracks the job, processes via
-EditingService, uploads to R2, and returns a ProcessingResponse.
+watermarks, page numbers, highlights, geometric shapes, and freehand
+drawings. Each endpoint validates the upload, tracks the job, processes
+via EditingService, uploads to R2, and returns a ProcessingResponse.
 """
 
 import json
@@ -28,6 +28,7 @@ from app.core.exceptions import (
     handle_docuconversion_error,
 )
 from app.models.schemas import (
+    FreehandDrawing,
     HighlightAnnotation,
     JobStatus,
     ProcessingResponse,
@@ -447,6 +448,94 @@ async def add_shapes(
             job_id=job_id,
             status=JobStatus.COMPLETED,
             message="Shapes added to the PDF successfully.",
+        )
+
+    except FileValidationError as e:
+        raise handle_docuconversion_error(e) from e
+    except (EditingError, StorageError) as e:
+        if "job_id" in locals():
+            job_manager.fail_job(job_id, e.message)
+        raise handle_docuconversion_error(e) from e
+
+
+@router.post("/add-drawing", response_model=ProcessingResponse)
+@limiter.limit("10/minute")
+async def add_drawing(
+    request: Request,
+    file: UploadFile = File(...),
+    drawings: str = Form(...),
+    user: UserClaims | None = Depends(get_optional_user),
+) -> ProcessingResponse:
+    """Add freehand ink drawings (polyline strokes) to a PDF.
+
+    The drawings parameter is a JSON string containing an array of
+    FreehandDrawing objects, each specifying a page, stroke color,
+    width, and a series of normalized coordinate points.
+
+    Args:
+        request: The incoming HTTP request (required for rate limiting).
+        file: The PDF file to annotate (multipart upload).
+        drawings: JSON string array of FreehandDrawing objects.
+
+    Returns:
+        ProcessingResponse with job ID and status.
+    """
+    try:
+        # Parse and validate drawings JSON
+        try:
+            drawings_list = json.loads(drawings)
+        except json.JSONDecodeError as e:
+            raise FileValidationError(
+                "Invalid drawings JSON. Please provide a valid JSON array."
+            ) from e
+
+        if len(drawings_list) > 500:
+            raise FileValidationError(
+                "Maximum 500 drawings allowed per request."
+            )
+
+        validated = [FreehandDrawing(**d).model_dump() for d in drawings_list]
+
+        file_content = await validate_pdf_upload(file)
+        safe_name = re.sub(r'[^\x20-\x7E]', '?', file.filename or 'unknown')
+        job_id, _client_token = job_manager.create_job(
+            file.filename or "document.pdf",
+            user_id=user.user_id if user else None,
+        )
+        logger.info(
+            "Add drawing started: job_id=%s, file=%s, count=%d",
+            job_id, safe_name, len(validated),
+        )
+
+        job_manager.update_progress(job_id, 10, "Validating file...")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            input_path = tmp_path / "input.pdf"
+            output_path = tmp_path / "output.pdf"
+
+            with open(input_path, "wb") as f:
+                f.write(file_content)
+
+            job_manager.update_progress(job_id, 30, "Adding drawings...")
+
+            await EditingService.add_freehand_drawing(
+                input_path, output_path, validated
+            )
+
+            job_manager.update_progress(job_id, 70, "Uploading result...")
+
+            storage = get_storage()
+            r2_key = f"edits/{job_id}/output.pdf"
+            await storage.upload_local_file(output_path, r2_key, "application/pdf")
+
+            download_url = await storage.generate_download_url(r2_key)
+            job_manager.complete_job(job_id, download_url)
+
+        return ProcessingResponse(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            message=f"Added {len(validated)} freehand drawing(s) to the PDF successfully.",
         )
 
     except FileValidationError as e:

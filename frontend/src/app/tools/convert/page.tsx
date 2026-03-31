@@ -22,7 +22,7 @@ const CONVERSION_TOOLS = [
   { id: "pdf-to-text", name: "PDF to Text", description: "Extract all text content from a PDF document" },
   { id: "word-to-pdf", name: "Word to PDF", description: "Convert Word documents (.doc, .docx) to PDF format" },
   { id: "excel-to-pdf", name: "Excel to PDF", description: "Convert Excel spreadsheets (.xlsx) to PDF format" },
-  { id: "ppt-to-pdf", name: "PowerPoint to PDF", description: "Convert PowerPoint presentations (.pptx) to PDF" },
+  { id: "pptx-to-pdf", name: "PowerPoint to PDF", description: "Convert PowerPoint presentations (.pptx) to PDF format" },
   { id: "image-to-pdf", name: "Image to PDF", description: "Convert images (PNG, JPG, etc.) to PDF documents" },
   { id: "html-to-pdf", name: "HTML to PDF", description: "Convert web pages and HTML files to PDF format" },
 ] as const;

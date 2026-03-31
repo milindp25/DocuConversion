@@ -251,6 +251,31 @@ class ShapeAnnotation(BaseModel):
     )
 
 
+class FreehandDrawing(BaseModel):
+    """A freehand ink stroke to draw on a PDF page.
+
+    Points are normalized to the [0, 1] range so they scale
+    across different page sizes. Each point is an ``[x, y]`` pair.
+    """
+
+    page: int = Field(ge=1, description="Page number (1-indexed)")
+    color: str = Field(
+        default="#000000",
+        pattern=r"^#[0-9a-fA-F]{6}$",
+        description="Stroke color as a hex string",
+    )
+    width: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=20.0,
+        description="Stroke width in points",
+    )
+    points: list[list[float]] = Field(
+        description="List of [x, y] coordinate pairs, normalized to [0, 1]",
+        min_length=2,
+    )
+
+
 class PdfPageInfo(BaseModel):
     """Dimension information for a single PDF page."""
 
