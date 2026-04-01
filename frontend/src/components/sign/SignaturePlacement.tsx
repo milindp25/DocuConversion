@@ -80,7 +80,6 @@ export function SignaturePlacement({
   /** Fetch the PDF page preview whenever page changes */
   useEffect(() => {
     let cancelled = false;
-    let objectUrl: string | null = null;
 
     const fetchPreview = async () => {
       setIsLoadingPreview(true);
@@ -98,9 +97,19 @@ export function SignaturePlacement({
 
         if (!response.ok || cancelled) return;
 
+        // Use a data URL instead of a blob URL so React StrictMode's
+        // effect cleanup (which would call URL.revokeObjectURL) cannot
+        // invalidate the preview — data URLs are plain strings, not
+        // revocable handles.
         const blob = await response.blob();
-        objectUrl = URL.createObjectURL(blob);
-        if (!cancelled) setPreviewUrl(objectUrl);
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        if (!cancelled) setPreviewUrl(dataUrl);
       } catch {
         // Preview unavailable — user can still place the signature
       } finally {
@@ -110,10 +119,7 @@ export function SignaturePlacement({
 
     void fetchPreview();
 
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
+    return () => { cancelled = true; };
   }, [pdfFile, page]);
 
   /** Emit placement whenever position, size, or page changes */

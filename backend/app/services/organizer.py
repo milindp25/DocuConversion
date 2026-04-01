@@ -132,12 +132,41 @@ class OrganizationService:
         try:
             with fitz.open(str(input_path)) as doc:
                 garbage = {"low": 1, "recommended": 3, "high": 4}.get(quality, 3)
-                deflate = quality == "high"
+                # JPEG quality per level — lower = smaller file, more lossy
+                jpeg_quality = {"low": 85, "recommended": 65, "high": 45}.get(quality, 65)
+
+                # Recompress every embedded image in the document.
+                # This is the primary driver of size reduction for scanned PDFs
+                # (tax docs, receipts, etc.) where images make up 90%+ of size.
+                seen_xrefs: set[int] = set()
+                for page in doc:
+                    for img_info in page.get_images(full=True):
+                        xref = img_info[0]
+                        if xref in seen_xrefs:
+                            continue
+                        seen_xrefs.add(xref)
+                        try:
+                            pix = fitz.Pixmap(doc, xref)
+                            # Skip tiny images (icons, decorations)
+                            if pix.width < 50 or pix.height < 50:
+                                continue
+                            # Remove alpha channel (JPEG does not support it)
+                            if pix.alpha:
+                                pix = fitz.Pixmap(pix, 0)
+                            # Convert CMYK → RGB so tobytes("jpeg") works
+                            if pix.colorspace and pix.colorspace.n > 3:
+                                pix = fitz.Pixmap(fitz.csRGB, pix)
+                            # Re-encode as JPEG at the target quality
+                            new_bytes = pix.tobytes("jpeg", jpg_quality=jpeg_quality)
+                            doc.update_stream(xref, new_bytes)
+                        except Exception:
+                            # Unsupported image type — leave it untouched
+                            pass
 
                 doc.save(
                     str(output_path),
                     garbage=garbage,
-                    deflate=deflate,
+                    deflate=True,
                     clean=True,
                 )
 

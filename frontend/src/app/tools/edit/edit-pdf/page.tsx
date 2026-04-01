@@ -83,8 +83,14 @@ export default function EditPdfPage() {
 
       if (!response.ok) return null;
 
+      // Data URL is immune to StrictMode blob-revocation bugs
       const blob = await response.blob();
-      return URL.createObjectURL(blob);
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     } catch {
       return null;
     }
@@ -136,11 +142,8 @@ export default function EditPdfPage() {
     [loadFile, fetchPagePreview]
   );
 
-  /** Handles file removal — resets the editor and cleans up preview state */
+  /** Handles file removal — resets the editor and preview state */
   const handleFileRemove = useCallback(() => {
-    if (previewImageUrl) {
-      URL.revokeObjectURL(previewImageUrl);
-    }
     setPreviewImageUrl(null);
     setPdfDimensions(null);
     setPreviewError(null);
@@ -256,7 +259,6 @@ export default function EditPdfPage() {
                   setPage(page);
                   if (state.file) {
                     const newUrl = await fetchPagePreview(state.file, page);
-                    if (previewImageUrl) URL.revokeObjectURL(previewImageUrl);
                     setPreviewImageUrl(newUrl);
                   }
                 }}
