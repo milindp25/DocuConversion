@@ -489,9 +489,11 @@ export default function SignPdfPage() {
             Place Your Signature
           </h2>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
             <SignaturePlacement
               pageCount={pageCount}
+              pdfFile={pdfFile!}
+              signatureDataUrl={signatureDataUrl!}
               onPlacementReady={handlePlacementReady}
             />
           </div>

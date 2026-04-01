@@ -92,9 +92,10 @@ export function TypeSignature({ onSignatureReady }: TypeSignatureProps) {
         throw new Error("Signature generated but download URL is not available");
       }
 
-      // Fetch the generated image and convert to data URL.
-      // download_url is a full URL (pre-signed R2 or absolute local path)
-      const imageResponse = await fetch(jobStatus.download_url);
+      // Fetch via the download proxy (avoids cross-origin CORS restrictions
+      // when the storage URL is on a different host than the frontend).
+      const proxyUrl = `/api/download?url=${encodeURIComponent(jobStatus.download_url)}&filename=signature.png`;
+      const imageResponse = await fetch(proxyUrl);
       if (!imageResponse.ok) {
         throw new Error("Failed to retrieve generated signature image");
       }

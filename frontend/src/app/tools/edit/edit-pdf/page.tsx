@@ -76,7 +76,7 @@ export default function EditPdfPage() {
       formData.append("file", file);
       formData.append("page", String(page));
 
-      const response = await fetch("/api/preview/render-page", {
+      const response = await fetch("/api/pdf/preview/render-page", {
         method: "POST",
         body: formData,
       });
@@ -110,7 +110,7 @@ export default function EditPdfPage() {
         const infoFormData = new FormData();
         infoFormData.append("file", file);
 
-        const infoRes = await fetch("/api/preview/info", {
+        const infoRes = await fetch("/api/pdf/preview/info", {
           method: "POST",
           body: infoFormData,
         });

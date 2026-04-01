@@ -55,9 +55,11 @@ export function DownloadButton({
         <span>Download ready</span>
       </div>
 
-      {/* Download button with shine animation */}
+      {/* Download button with shine animation.
+          Routes through /api/download so Content-Disposition: attachment is set
+          server-side — the HTML download attribute is ignored for cross-origin URLs. */}
       <a
-        href={downloadUrl}
+        href={`/api/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(fileName)}`}
         download={fileName}
         className={cn(
           "btn-shine inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-4 text-white shadow-lg shadow-blue-500/25 transition-all duration-200",
