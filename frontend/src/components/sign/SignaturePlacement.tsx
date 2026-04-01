@@ -279,38 +279,48 @@ export function SignaturePlacement({
         </fieldset>
       </div>
 
-      {/* PDF canvas — the user drags the signature here */}
+      {/* PDF canvas — the user drags the signature here.
+          The container is sized by the image naturally (w-full h-auto) so
+          coordinates are always relative to the actual page content — no
+          letterboxing offset regardless of PDF aspect ratio. */}
       <div
         ref={containerRef}
         className="relative select-none overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900"
-        style={{ paddingBottom: "141%", cursor: "default" }} /* A4 aspect ratio */
+        style={{ cursor: "default" }}
         aria-label="Drag your signature to position it on the PDF page"
       >
-        <div className="absolute inset-0">
-          {/* PDF page preview */}
-          {isLoadingPreview && (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
-          )}
+        {/* Loading placeholder — A4-ish min height so the area doesn't collapse */}
+        {isLoadingPreview && (
+          <div className="flex items-center justify-center" style={{ minHeight: "420px" }}>
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          </div>
+        )}
 
-          {previewUrl && !isLoadingPreview && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={previewUrl}
-              alt={`Page ${page} preview`}
-              className="h-full w-full object-contain"
-              draggable={false}
-            />
-          )}
+        {/* No-preview fallback */}
+        {!previewUrl && !isLoadingPreview && (
+          <div
+            className="flex items-center justify-center text-sm text-gray-400 dark:text-gray-500"
+            style={{ minHeight: "420px" }}
+          >
+            PDF preview unavailable — drag the signature below to position it
+          </div>
+        )}
 
-          {!previewUrl && !isLoadingPreview && (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
-              PDF preview unavailable — drag the signature below to position it
-            </div>
-          )}
+        {/* PDF page preview — natural size drives the container height so
+            absolute-positioned elements map 1:1 to page coordinates. */}
+        {previewUrl && !isLoadingPreview && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={previewUrl}
+            alt={`Page ${page} preview`}
+            className="w-full h-auto block"
+            draggable={false}
+          />
+        )}
 
-          {/* Draggable signature overlay */}
+        {/* Draggable signature overlay — only render when we have a preview so
+            the container has a known size and drag math is accurate. */}
+        {previewUrl && !isLoadingPreview && (
           <div
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
@@ -339,7 +349,7 @@ export function SignaturePlacement({
               draggable={false}
             />
           </div>
-        </div>
+        )}
       </div>
 
       <p className="text-center text-xs text-gray-400 dark:text-gray-500">

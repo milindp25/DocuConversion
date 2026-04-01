@@ -9,7 +9,7 @@
 
 import { useCallback, useState } from "react";
 
-import { PenLine, Loader2, FileText, AlertCircle } from "lucide-react";
+import { PenLine, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { ToolPageLayout } from "@/components/tools/ToolPageLayout";
 import { FileUploader } from "@/components/tools/FileUploader";
@@ -59,6 +59,7 @@ export default function EditPdfPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [pdfDimensions, setPdfDimensions] = useState<{
     width: number;
     height: number;
@@ -208,6 +209,7 @@ export default function EditPdfPage() {
       description="Add text, highlights, and shapes to your PDF documents"
       category="edit"
       icon={PenLine}
+      wide
     >
       {/* Step 1: File upload */}
       {!hasFile && (
@@ -222,27 +224,46 @@ export default function EditPdfPage() {
       {/* Step 2: Editor interface */}
       {hasFile && (
         <div className="space-y-4">
-          {/* Toolbar */}
-          <EditorToolbar
-            activeTool={state.activeTool}
-            onToolChange={setActiveTool}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={undo}
-            onRedo={redo}
-            zoom={state.zoom}
-            onZoomChange={setZoom}
-            currentPage={state.currentPage}
-            totalPages={state.totalPages}
-            onPageChange={setPage}
-            onSave={handleSave}
-            isSaving={isSaving}
-          />
-
-          {/* Main content area: Canvas + Side panel */}
-          <div className="flex flex-col gap-4 lg:flex-row">
-            {/* Left: PDF canvas area */}
+          {/* Toolbar + panel toggle */}
+          <div className="flex items-center gap-2">
             <div className="flex-1">
+              <EditorToolbar
+                activeTool={state.activeTool}
+                onToolChange={setActiveTool}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={undo}
+                onRedo={redo}
+                zoom={state.zoom}
+                onZoomChange={setZoom}
+                currentPage={state.currentPage}
+                totalPages={state.totalPages}
+                onPageChange={setPage}
+                onSave={handleSave}
+                isSaving={isSaving}
+              />
+            </div>
+            {/* Collapse / expand the annotation side panel */}
+            <button
+              type="button"
+              onClick={() => setIsPanelOpen((v) => !v)}
+              title={isPanelOpen ? "Hide annotation panel" : "Show annotation panel"}
+              className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            >
+              {isPanelOpen
+                ? <PanelRightClose className="h-5 w-5" aria-hidden="true" />
+                : <PanelRightOpen className="h-5 w-5" aria-hidden="true" />
+              }
+              <span className="sr-only">
+                {isPanelOpen ? "Hide annotation panel" : "Show annotation panel"}
+              </span>
+            </button>
+          </div>
+
+          {/* Main content area: Canvas + collapsible side panel */}
+          <div className="flex flex-col gap-4 lg:flex-row">
+            {/* Canvas — takes all available width when panel is collapsed */}
+            <div className="min-w-0 flex-1">
               <EditorCanvas
                 file={state.file}
                 fileUrl={state.fileUrl}
@@ -265,17 +286,21 @@ export default function EditPdfPage() {
               />
             </div>
 
-            {/* Right: Annotation panel */}
-            <AnnotationPanel
-              annotations={state.annotations}
-              selectedAnnotation={state.selectedAnnotation}
-              currentPage={state.currentPage}
-              totalPages={state.totalPages}
-              onAddAnnotation={addAnnotation}
-              onUpdateAnnotation={updateAnnotation}
-              onRemoveAnnotation={removeAnnotation}
-              onSelectAnnotation={selectAnnotation}
-            />
+            {/* Annotation panel — hidden when collapsed */}
+            {isPanelOpen && (
+              <div className="w-full lg:w-72 lg:flex-shrink-0">
+                <AnnotationPanel
+                  annotations={state.annotations}
+                  selectedAnnotation={state.selectedAnnotation}
+                  currentPage={state.currentPage}
+                  totalPages={state.totalPages}
+                  onAddAnnotation={addAnnotation}
+                  onUpdateAnnotation={updateAnnotation}
+                  onRemoveAnnotation={removeAnnotation}
+                  onSelectAnnotation={selectAnnotation}
+                />
+              </div>
+            )}
           </div>
 
           {/* Save error message */}
