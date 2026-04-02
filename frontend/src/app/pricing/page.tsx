@@ -116,29 +116,8 @@ const TIERS: PricingTier[] = [
   },
 ];
 
-/** Frequently asked questions */
-const FAQ_ITEMS: FaqItem[] = [
-  {
-    question: "Can I switch plans anytime?",
-    answer:
-      "Yes! You can upgrade or downgrade your plan at any time. When upgrading, your new features are available immediately. When downgrading, your current plan remains active until the end of the billing period.",
-  },
-  {
-    question: "What happens when I exceed the limit?",
-    answer:
-      "You will receive a notification when you are approaching your daily limit. Once you hit the cap, additional operations are queued until the next day or you can upgrade your plan for immediate access.",
-  },
-  {
-    question: "Is there a student discount?",
-    answer:
-      "We offer a 50% discount on the Pro plan for students and educators with a valid .edu email address. Contact our support team with proof of enrollment to get your discount code.",
-  },
-  {
-    question: "How does the free trial work?",
-    answer:
-      "The Pro plan comes with a 14-day free trial. No credit card is required to start. You get full access to all Pro features during the trial period, and you can cancel anytime before the trial ends.",
-  },
-];
+/** FAQ data imported from shared module (also used by layout.tsx for JSON-LD) */
+import { FAQ_ITEMS } from "@/lib/pricing-data";
 
 /**
  * Renders the value for a feature cell.
@@ -316,7 +295,7 @@ export default function PricingPage() {
                   <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-800/50">
                     <tier.icon className={`h-6 w-6 ${tier.iconColor}`} />
                   </div>
-                  <h2 className="text-xl font-bold text-white">{tier.name}</h2>
+                  <h2 className="text-xl font-bold text-white" aria-label={`${tier.name} plan`}>{tier.name}</h2>
                   <div className="mt-3 flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-extrabold text-white">{tier.price}</span>
                     <span className="text-sm text-gray-400">{tier.period}</span>

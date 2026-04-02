@@ -2,7 +2,8 @@
  * Layout with SEO metadata for the Add Watermark tool page.
  */
 
-import { generateToolMetadata } from "@/lib/seo";
+import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
   title: "Add Watermark",
@@ -11,5 +12,16 @@ export const metadata = generateToolMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd
+        data={generateBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Edit", path: "/tools/edit" },
+          { name: "Add Watermark", path: "/tools/edit/add-watermark" },
+        ])}
+      />
+      {children}
+    </>
+  );
 }
