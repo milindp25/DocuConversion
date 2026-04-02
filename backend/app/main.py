@@ -8,6 +8,7 @@ central hub for the backend service.
 
 import logging as _logging
 import time
+import uuid
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +21,7 @@ from slowapi.util import get_remote_address
 from app.api import ai, advanced, convert, developer, edit, jobs, organize, payments, preview, share, sign, secure
 from app.core.config import settings
 from app.core.exceptions import DocuConversionError, handle_docuconversion_error
-from app.core.logging_config import configure_logging
+from app.core.logging_config import configure_logging, request_id_ctx
 
 # Initialise logging before anything else so all module-level loggers
 # inherit the correct configuration.
@@ -66,10 +67,16 @@ _req_logger = _logging.getLogger("docuconversion.requests")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log every HTTP request with method, path, status, and duration."""
+    """Assign a correlation ID to every request, log it, and return it
+    as the X-Request-ID response header so clients can reference it."""
+    # Honour an existing ID forwarded by a gateway/load-balancer, or mint one.
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request_id_ctx.set(req_id)
+
     start = time.perf_counter()
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start) * 1000
+
     _req_logger.info(
         "HTTP %s %s → %d (%.0fms)",
         request.method,
@@ -77,6 +84,9 @@ async def log_requests(request: Request, call_next):
         response.status_code,
         duration_ms,
     )
+
+    # Echo the ID back so the frontend can include it in bug reports.
+    response.headers["X-Request-ID"] = req_id
     return response
 
 

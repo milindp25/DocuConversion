@@ -3,22 +3,37 @@ Centralised logging configuration for DocuConversion API.
 
 JSON formatter for production (parseable by Railway / Datadog).
 Human-readable coloured formatter for local development.
+
+Correlation IDs
+---------------
+A per-request UUID is stored in ``request_id_ctx`` (a ContextVar).
+The middleware in main.py sets it at the start of every request so
+every log line emitted during that request automatically includes
+``"req_id": "<uuid>"`` in the JSON output — even from deeply nested
+service calls — because asyncio preserves ContextVar values across
+await boundaries within the same task.
 """
 import json
 import logging
 import logging.config
 import sys
+from contextvars import ContextVar
 from datetime import datetime, timezone
+
+# Stores the current request's correlation ID.
+# Set to a UUID in the HTTP middleware; defaults to "-" when outside a request.
+request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 
 
 class _JsonFormatter(logging.Formatter):
-    """Emit each log record as a single JSON line."""
+    """Emit each log record as a single JSON line, including the request ID."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
+            "req_id": request_id_ctx.get(),
             "msg": record.getMessage(),
         }
         # Include exception info if present

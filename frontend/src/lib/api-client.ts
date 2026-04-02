@@ -59,6 +59,7 @@ export async function apiRequest<T>(
     } catch {
       detail = response.statusText;
     }
+    console.error("[api-client] %s %s → %d: %s", options.method ?? "GET", url, response.status, detail);
     throw new ApiRequestError(response.status, detail);
   }
 
@@ -103,6 +104,7 @@ export async function uploadFile<T>(
     } catch {
       detail = response.statusText;
     }
+    console.error("[api-client] POST %s → %d: %s", url, response.status, detail);
     throw new ApiRequestError(response.status, detail);
   }
 
