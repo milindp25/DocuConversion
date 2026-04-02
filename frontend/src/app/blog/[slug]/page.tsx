@@ -141,14 +141,24 @@ export function generateMetadata({
   }
 
   return {
-    title: `${article.title} | DocuConversion Blog`,
+    title: article.title,
     description: article.description,
+    alternates: {
+      canonical: `https://docuconversion.com/blog/${article.slug}`,
+    },
     openGraph: {
       title: article.title,
       description: article.description,
+      url: `https://docuconversion.com/blog/${article.slug}`,
+      siteName: "DocuConversion",
       type: "article",
       publishedTime: article.date,
       authors: [article.author],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description: article.description,
     },
   };
 }

@@ -27,12 +27,18 @@ from app.core.logging_config import configure_logging, request_id_ctx
 # inherit the correct configuration.
 configure_logging(log_level=settings.log_level, log_format=settings.log_format)
 
+import os  # noqa: E402
 import sentry_sdk  # noqa: E402 — must come after logging is set up
 
 if settings.sentry_dsn:
+    # Render injects RENDER_GIT_COMMIT on every deploy; use it as the
+    # Sentry release so errors are grouped by deploy and Sentry can
+    # send deployment notifications.
+    _release = os.environ.get("RENDER_GIT_COMMIT")
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.environment,
+        release=_release[:8] if _release else None,
         traces_sample_rate=settings.sentry_traces_sample_rate,
         integrations=[],  # FastAPI integration added via SentryAsgiMiddleware below
     )

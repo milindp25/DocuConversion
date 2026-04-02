@@ -2,7 +2,8 @@
  * Layout with SEO metadata for the OCR tool page.
  */
 
-import { generateToolMetadata } from "@/lib/seo";
+import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
   title: "OCR",
@@ -11,5 +12,16 @@ export const metadata = generateToolMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd
+        data={generateBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "AI", path: "/tools/ai" },
+          { name: "OCR", path: "/tools/ai/ocr" },
+        ])}
+      />
+      {children}
+    </>
+  );
 }

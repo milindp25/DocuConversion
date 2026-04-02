@@ -2,7 +2,8 @@
  * Layout with SEO metadata for the Flatten PDF tool page.
  */
 
-import { generateToolMetadata } from "@/lib/seo";
+import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
   title: "Flatten PDF",
@@ -11,5 +12,16 @@ export const metadata = generateToolMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd
+        data={generateBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Advanced", path: "/tools/advanced" },
+          { name: "Flatten PDF", path: "/tools/advanced/flatten" },
+        ])}
+      />
+      {children}
+    </>
+  );
 }
