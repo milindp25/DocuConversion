@@ -49,7 +49,7 @@ async def create_checkout(
         price_id = price_map.get(plan)
         if not price_id:
             raise PaymentError(
-                f"Invalid plan '{plan}'. Choose 'pro' or 'enterprise'."
+                "Invalid plan. Choose 'pro' or 'enterprise'."
             )
 
         checkout_url = await PaymentService.create_checkout_session(
@@ -69,8 +69,9 @@ async def create_checkout(
 async def stripe_webhook(request: Request) -> JSONResponse:
     """Handle Stripe webhook events.
 
-    Placeholder for Stripe webhook processing. Will update user tier
-    on successful subscription payment events.
+    Verifies the Stripe signature before processing to prevent forged
+    events. Currently logs verified events; event-specific handling
+    (tier upgrades, downgrades) will be added in a future phase.
 
     Args:
         request: The raw webhook request from Stripe.
@@ -78,12 +79,32 @@ async def stripe_webhook(request: Request) -> JSONResponse:
     Returns:
         JSONResponse acknowledging receipt of the webhook.
     """
-    # TODO: Implement full webhook verification and event processing
-    # - Verify webhook signature using settings.stripe_webhook_secret
-    # - Handle checkout.session.completed -> update user tier
-    # - Handle customer.subscription.deleted -> downgrade user tier
-    # - Handle invoice.payment_failed -> notify user
-    logger.info("Stripe webhook received (placeholder — not yet processed)")
+    import stripe
+
+    webhook_secret = settings.stripe_webhook_secret
+    if not webhook_secret:
+        logger.warning("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured — rejecting")
+        return JSONResponse(content={"detail": "Webhook not configured"}, status_code=503)
+
+    body = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    if not sig_header:
+        return JSONResponse(content={"detail": "Missing stripe-signature header"}, status_code=400)
+
+    try:
+        event = stripe.Webhook.construct_event(body, sig_header, webhook_secret)
+    except stripe.error.SignatureVerificationError:
+        logger.warning("Stripe webhook signature verification failed")
+        return JSONResponse(content={"detail": "Invalid signature"}, status_code=400)
+    except ValueError:
+        logger.warning("Stripe webhook payload could not be parsed")
+        return JSONResponse(content={"detail": "Invalid payload"}, status_code=400)
+
+    # TODO: Handle specific event types
+    # - checkout.session.completed -> update user tier
+    # - customer.subscription.deleted -> downgrade user tier
+    # - invoice.payment_failed -> notify user
+    logger.info("Stripe webhook verified: type=%s id=%s", event["type"], event["id"])
     return JSONResponse(content={"received": True}, status_code=200)
 
 

@@ -12,14 +12,25 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-/** Allowed URL prefixes — backend local dev and Cloudflare R2 */
+/** Validate that the URL points to a trusted storage origin.
+ *  Uses hostname parsing — never substring matching — to prevent
+ *  SSRF bypasses like https://evil.com/?.r2.cloudflarestorage.com */
 function isAllowedUrl(url: string): boolean {
-  const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
-  return (
-    url.startsWith(backendUrl) ||
-    url.includes(".r2.cloudflarestorage.com") ||
-    url.includes(".cloudflare.com")
-  );
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+
+    const backendUrl = new URL(process.env.BACKEND_URL || "http://localhost:8000");
+    if (parsed.hostname === backendUrl.hostname) return true;
+
+    // Cloudflare R2 storage — validate the actual hostname, not a substring
+    if (parsed.hostname.endsWith(".r2.cloudflarestorage.com")) return true;
+    if (parsed.hostname.endsWith(".r2.dev")) return true;
+
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
