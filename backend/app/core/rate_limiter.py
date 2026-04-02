@@ -1,9 +1,10 @@
 """Per-user tier-based rate limiting.
 
 Tracks daily operations per user/IP and enforces tier limits:
-- Anonymous: 5 operations/day
-- Free (account): 20 operations/day
+- Anonymous: 50 operations/day
+- Free (account): 100 operations/day
 - Premium: Unlimited
+- Enterprise: Unlimited
 
 Uses an in-memory counter that resets daily. In production, this
 should be backed by Redis or a database for multi-instance support.
@@ -14,6 +15,8 @@ from datetime import date
 
 # In-memory counter: {(user_id_or_ip, date_str): count}
 _usage_counter: dict[tuple[str, str], int] = defaultdict(int)
+# Track the current date to purge stale entries on day rollover
+_last_purge_date: str = ""
 
 TIER_LIMITS: dict[str, float] = {
     "anonymous": 50,
@@ -21,6 +24,19 @@ TIER_LIMITS: dict[str, float] = {
     "premium": float("inf"),
     "enterprise": float("inf"),
 }
+
+
+def _purge_stale_entries() -> None:
+    """Remove entries from previous days to prevent unbounded memory growth."""
+    global _last_purge_date
+    today = date.today().isoformat()
+    if _last_purge_date == today:
+        return
+    # Remove all entries whose date component doesn't match today
+    stale_keys = [k for k in _usage_counter if k[1] != today]
+    for k in stale_keys:
+        del _usage_counter[k]
+    _last_purge_date = today
 
 
 def check_and_increment(
@@ -37,6 +53,7 @@ def check_and_increment(
         Tuple of (allowed, used_count, daily_limit).
         For unlimited tiers, limit is returned as -1.
     """
+    _purge_stale_entries()
     key_id = user_id or client_ip
     today = date.today().isoformat()
     key = (key_id, today)

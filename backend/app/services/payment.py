@@ -56,6 +56,8 @@ class PaymentService:
                 cancel_url=f"{frontend_base}/pricing?payment=cancelled",
                 client_reference_id=user_id,
             )
+            if not session.url:
+                raise PaymentError("Stripe did not return a checkout URL.")
             return session.url
         except PaymentError:
             raise

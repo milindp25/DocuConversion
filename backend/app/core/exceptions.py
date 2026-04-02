@@ -94,6 +94,12 @@ class AiError(DocuConversionError):
     pass
 
 
+class RateLimitError(DocuConversionError):
+    """Raised when a user exceeds their tier-based daily operation limit."""
+
+    pass
+
+
 class PaymentError(DocuConversionError):
     """Raised when a payment operation fails.
 
@@ -127,7 +133,9 @@ def handle_docuconversion_error(error: DocuConversionError) -> HTTPException:
     """
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    if isinstance(error, FileValidationError):
+    if isinstance(error, RateLimitError):
+        status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    elif isinstance(error, FileValidationError):
         status_code = status.HTTP_400_BAD_REQUEST
     elif isinstance(error, ConversionError):
         status_code = status.HTTP_422_UNPROCESSABLE_ENTITY

@@ -1122,8 +1122,14 @@ class ConversionService:
                 if slide.shapes.title:
                     title = slide.shapes.title.text
 
+                # Escape XML special chars in title (ReportLab Paragraph uses XML markup)
+                safe_title = (
+                    title.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                ) if title else ""
                 story.append(Paragraph(
-                    f"<b>Slide {slide_num}</b>" + (f": {title}" if title else ""),
+                    f"<b>Slide {slide_num}</b>" + (f": {safe_title}" if safe_title else ""),
                     styles["SlideTitle"],
                 ))
 

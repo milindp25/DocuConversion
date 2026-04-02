@@ -72,10 +72,26 @@ export function SignaturePlacement({
   /** Normalized (0-1) top-left corner of the signature */
   const [sigPos, setSigPos] = useState({ x: DEFAULT_X, y: DEFAULT_Y });
 
+  /** Natural aspect ratio of the signature image (height / width).
+   *  Defaults to 0.45 (~2:1) until the image loads and we measure it. */
+  const [sigAspectRatio, setSigAspectRatio] = useState(0.45);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   /** Offset from the sig's top-left corner to where the user grabbed it */
   const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  /** Measure the signature image's natural aspect ratio so we send
+   *  accurate height coordinates to the backend instead of hardcoding. */
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0) {
+        setSigAspectRatio(img.naturalHeight / img.naturalWidth);
+      }
+    };
+    img.src = signatureDataUrl;
+  }, [signatureDataUrl]);
 
   /** Fetch the PDF page preview whenever page changes */
   useEffect(() => {
@@ -130,9 +146,9 @@ export function SignaturePlacement({
       x: sigPos.x,
       y: sigPos.y,
       width: w,
-      height: w * 0.45, // maintain roughly 2:1 aspect ratio
+      height: w * sigAspectRatio, // use measured signature aspect ratio
     });
-  }, [page, sizeIndex, sigPos, onPlacementReady]);
+  }, [page, sizeIndex, sigPos, sigAspectRatio, onPlacementReady]);
 
   /** Begin drag — record where on the signature the user grabbed */
   const handleMouseDown = useCallback(
@@ -164,7 +180,7 @@ export function SignaturePlacement({
 
       setSigPos({
         x: Math.max(0, Math.min(1 - sigW, rawX)),
-        y: Math.max(0, Math.min(1 - sigW * 0.45, rawY)),
+        y: Math.max(0, Math.min(1 - sigW * sigAspectRatio, rawY)),
       });
     };
 
@@ -207,7 +223,7 @@ export function SignaturePlacement({
       const rawY = (touch.clientY - rect.top - dragOffsetRef.current.y) / rect.height;
       setSigPos({
         x: Math.max(0, Math.min(1 - sigW, rawX)),
-        y: Math.max(0, Math.min(1 - sigW * 0.45, rawY)),
+        y: Math.max(0, Math.min(1 - sigW * sigAspectRatio, rawY)),
       });
     },
     [sizeIndex]

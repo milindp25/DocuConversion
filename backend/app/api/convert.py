@@ -509,6 +509,7 @@ async def convert_excel_to_pdf(
     request: Request,
     file: UploadFile = File(...),
     user: UserClaims | None = Depends(get_optional_user),
+    _tier_check: None = Depends(check_tier_limit),
 ) -> ProcessingResponse:
     """Convert an Excel workbook (.xlsx) to PDF format."""
     try:
@@ -557,6 +558,7 @@ async def convert_pptx_to_pdf(
     request: Request,
     file: UploadFile = File(...),
     user: UserClaims | None = Depends(get_optional_user),
+    _tier_check: None = Depends(check_tier_limit),
 ) -> ProcessingResponse:
     """Convert a PowerPoint presentation (.pptx) to PDF format."""
     try:
@@ -605,6 +607,7 @@ async def convert_html_to_pdf(
     request: Request,
     file: UploadFile = File(...),
     user: UserClaims | None = Depends(get_optional_user),
+    _tier_check: None = Depends(check_tier_limit),
 ) -> ProcessingResponse:
     """Convert an HTML file to PDF format."""
     try:

@@ -11,7 +11,7 @@ from fastapi import Depends, Request
 
 from app.core.auth import UserClaims
 from app.core.dependencies import get_optional_user
-from app.core.exceptions import FileValidationError
+from app.core.exceptions import RateLimitError
 from app.core.rate_limiter import check_and_increment
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ async def check_tier_limit(
         user: The authenticated user, or None for anonymous access.
 
     Raises:
-        FileValidationError: When the daily operation limit is exceeded.
+        RateLimitError: When the daily operation limit is exceeded.
     """
     tier = user.tier if user else "anonymous"
     client_ip = request.client.host if request.client else "unknown"
@@ -47,7 +47,7 @@ async def check_tier_limit(
             used,
             limit_str,
         )
-        raise FileValidationError(
+        raise RateLimitError(
             f"Daily operation limit reached ({used}/{limit}). "
             "Upgrade to Premium for unlimited operations."
         )
