@@ -29,6 +29,8 @@ export interface ToolPageLayoutProps {
    * Default tools use max-w-2xl.
    */
   wide?: boolean;
+  /** Optional SEO supporting content rendered below the tool */
+  supportingContent?: React.ReactNode;
 }
 
 /**
@@ -55,6 +57,7 @@ export function ToolPageLayout({
   icon: Icon,
   children,
   wide = false,
+  supportingContent,
 }: ToolPageLayoutProps) {
   const colors = TOOL_CATEGORY_COLORS[category];
 
@@ -95,6 +98,15 @@ export function ToolPageLayout({
 
       {/* Tool content */}
       <div className="space-y-8">{children}</div>
+
+      {/* Supporting SEO content */}
+      {supportingContent && (
+        <section className="mt-16 border-t border-gray-200 pt-12 dark:border-gray-800">
+          <div className="prose prose-gray max-w-none dark:prose-invert prose-headings:text-lg prose-headings:font-semibold prose-p:text-sm prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400">
+            {supportingContent}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

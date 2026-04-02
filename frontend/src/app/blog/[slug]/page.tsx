@@ -8,6 +8,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import { generateArticleJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 /** Shape of a blog article including full body content */
 interface BlogArticleData {
@@ -22,6 +24,8 @@ interface BlogArticleData {
   ctaHref: string;
   /** CTA button label */
   ctaLabel: string;
+  /** Internal links to related tools and articles for SEO */
+  relatedLinks: { label: string; href: string }[];
 }
 
 /** All available blog articles keyed by slug */
@@ -41,6 +45,12 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ],
     ctaHref: "/tools/convert/pdf-to-word",
     ctaLabel: "Convert PDF to Word now",
+    relatedLinks: [
+      { label: "PDF to Excel converter", href: "/tools/convert/pdf-to-excel" },
+      { label: "PDF to Image converter", href: "/tools/convert/pdf-to-image" },
+      { label: "OCR tool for scanned PDFs", href: "/tools/ai/ocr" },
+      { label: "How to compress PDFs", href: "/blog/compress-pdf-guide" },
+    ],
   },
   "compress-pdf-guide": {
     slug: "compress-pdf-guide",
@@ -57,6 +67,12 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ],
     ctaHref: "/tools/organize/compress",
     ctaLabel: "Compress your PDF for free",
+    relatedLinks: [
+      { label: "Merge PDF files", href: "/tools/organize/merge" },
+      { label: "Split PDF pages", href: "/tools/organize/split" },
+      { label: "PDF to Word converter", href: "/tools/convert/pdf-to-word" },
+      { label: "Guide to converting PDF to Word", href: "/blog/pdf-to-word-guide" },
+    ],
   },
   "esignature-guide": {
     slug: "esignature-guide",
@@ -73,6 +89,12 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ],
     ctaHref: "/tools/sign/sign-pdf",
     ctaLabel: "Sign a PDF now",
+    relatedLinks: [
+      { label: "Protect PDF with a password", href: "/tools/secure/protect" },
+      { label: "Add watermarks to PDFs", href: "/tools/edit/add-watermark" },
+      { label: "How to add watermarks", href: "/blog/watermark-pdf-guide" },
+      { label: "Merge PDF files", href: "/tools/organize/merge" },
+    ],
   },
   "merge-pdf-guide": {
     slug: "merge-pdf-guide",
@@ -89,6 +111,12 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ],
     ctaHref: "/tools/organize/merge",
     ctaLabel: "Merge your PDFs now",
+    relatedLinks: [
+      { label: "Split PDF pages", href: "/tools/organize/split" },
+      { label: "Compress PDF files", href: "/tools/organize/compress" },
+      { label: "How to compress PDFs", href: "/blog/compress-pdf-guide" },
+      { label: "Add page numbers to PDF", href: "/tools/edit/add-page-numbers" },
+    ],
   },
   "watermark-pdf-guide": {
     slug: "watermark-pdf-guide",
@@ -105,6 +133,12 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ],
     ctaHref: "/tools/edit/watermark",
     ctaLabel: "Add a watermark to your PDF",
+    relatedLinks: [
+      { label: "Protect PDF with a password", href: "/tools/secure/protect" },
+      { label: "Sign a PDF electronically", href: "/tools/sign/sign-pdf" },
+      { label: "Guide to electronic signatures", href: "/blog/esignature-guide" },
+      { label: "Edit PDF content", href: "/tools/edit/edit-pdf" },
+    ],
   },
   "ai-pdf-tools": {
     slug: "ai-pdf-tools",
@@ -121,6 +155,12 @@ const ARTICLES: Record<string, BlogArticleData> = {
     ],
     ctaHref: "/tools/advanced/compare",
     ctaLabel: "Try AI-powered PDF comparison",
+    relatedLinks: [
+      { label: "OCR tool for scanned PDFs", href: "/tools/ai/ocr" },
+      { label: "Summarize a PDF with AI", href: "/tools/ai/summarize" },
+      { label: "Chat with a PDF", href: "/tools/ai/chat" },
+      { label: "PDF to Word converter", href: "/tools/convert/pdf-to-word" },
+    ],
   },
 };
 
@@ -130,12 +170,13 @@ export function generateStaticParams() {
 }
 
 /** Generate page metadata based on the article slug */
-export function generateMetadata({
+export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
-}): Metadata {
-  const article = ARTICLES[params.slug];
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const article = ARTICLES[slug];
   if (!article) {
     return { title: "Article Not Found" };
   }
@@ -144,12 +185,12 @@ export function generateMetadata({
     title: article.title,
     description: article.description,
     alternates: {
-      canonical: `https://docuconversion.com/blog/${article.slug}`,
+      canonical: `https://www.docuconversion.com/blog/${article.slug}`,
     },
     openGraph: {
       title: article.title,
       description: article.description,
-      url: `https://docuconversion.com/blog/${article.slug}`,
+      url: `https://www.docuconversion.com/blog/${article.slug}`,
       siteName: "DocuConversion",
       type: "article",
       publishedTime: article.date,
@@ -167,19 +208,34 @@ export function generateMetadata({
  * Renders a single blog article with title, date, author, body
  * paragraphs, and a call-to-action linking to the relevant tool.
  */
-export default function BlogArticlePage({
+export default async function BlogArticlePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const article = ARTICLES[params.slug];
+  const { slug } = await params;
+  const article = ARTICLES[slug];
 
   if (!article) {
     notFound();
   }
 
+  const articleJsonLd = generateArticleJsonLd({
+    title: article.title,
+    description: article.description,
+    slug: article.slug,
+    date: article.date,
+    author: article.author,
+  });
+
   return (
     <div className="bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <article className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
         {/* Back link */}
         <Link
@@ -237,6 +293,28 @@ export default function BlogArticlePage({
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
+
+        {/* Related links for internal linking */}
+        {article.relatedLinks && article.relatedLinks.length > 0 && (
+          <nav className="mt-12" aria-label="Related tools and guides">
+            <h2 className="mb-4 text-lg font-semibold text-white">
+              Related Tools & Guides
+            </h2>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {article.relatedLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="group flex items-center gap-2 rounded-lg border border-gray-800/50 bg-gray-900/30 px-4 py-3 text-sm font-medium text-gray-300 transition-all duration-200 hover:border-gray-700 hover:bg-gray-800/50 hover:text-white"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5 text-gray-600 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-blue-400" />
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
       </article>
     </div>
   );

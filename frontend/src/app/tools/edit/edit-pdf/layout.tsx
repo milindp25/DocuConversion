@@ -2,7 +2,7 @@
  * Layout with SEO metadata for the Edit PDF tool page.
  */
 
-import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { generateToolMetadata, generateToolJsonLd, generateBreadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
@@ -20,6 +20,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           { name: "Edit", path: "/tools/edit" },
           { name: "Edit PDF", path: "/tools/edit/edit-pdf" },
         ])}
+      />
+      <JsonLd
+        data={generateToolJsonLd({
+          title: "Edit PDF",
+          description: "Add text, highlights, and shapes to your PDF documents. Free, fast, and no account needed.",
+          path: "/tools/edit/edit-pdf",
+        })}
       />
       {children}
     </>

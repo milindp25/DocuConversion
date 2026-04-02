@@ -52,6 +52,30 @@ export default function SplitPdfPage() {
       description="Split a PDF into separate documents by page range"
       category="organize"
       icon={Scissors}
+      supportingContent={
+        <>
+          <h2>How to Split a PDF</h2>
+          <p>
+            Upload a PDF and choose a split mode. Select "Each page as separate file"
+            to get one PDF per page, or use "Custom page range" to specify exactly
+            which pages to extract (for example 1-3, 5, 8-10). Click Split and
+            download the resulting ZIP archive.
+          </p>
+          <h2>Split by Range or Individual Pages</h2>
+          <p>
+            Custom ranges let you pull out a specific chapter, remove unwanted pages,
+            or isolate a single form from a larger packet. Ranges can be combined
+            freely, so you can extract non-consecutive pages in one step.
+          </p>
+          <h2>Extracting Specific Pages</h2>
+          <p>
+            Need just the signature page from a contract or one chart from a report?
+            Enter that page number in the custom range field and the splitter will
+            produce a standalone PDF containing only the pages you selected, with
+            original quality and formatting intact.
+          </p>
+        </>
+      }
     >
       <FileUploader
         acceptedTypes={ACCEPTED_FILE_TYPES.PDF}

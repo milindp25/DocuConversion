@@ -10,7 +10,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://docuconversion.com";
+  const baseUrl = "https://www.docuconversion.com";
 
   // Fixed dates — update these when content actually changes
   const launchDate = "2026-03-15";
@@ -26,14 +26,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/terms`, lastModified: launchDate },
   ];
 
-  /** Blog articles */
+  /** Blog articles — must match keys in blog/[slug]/page.tsx ARTICLES */
   const blogPages: MetadataRoute.Sitemap = [
     "/blog/pdf-to-word-guide",
     "/blog/compress-pdf-guide",
     "/blog/esignature-guide",
-    "/blog/batch-processing-guide",
-    "/blog/pdf-security-guide",
-    "/blog/ai-pdf-tools-guide",
+    "/blog/merge-pdf-guide",
+    "/blog/watermark-pdf-guide",
+    "/blog/ai-pdf-tools",
   ].map((path) => ({
     url: `${baseUrl}${path}`,
     lastModified: lastContentUpdate,

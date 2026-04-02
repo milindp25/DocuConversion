@@ -371,6 +371,32 @@ export default function SignPdfPage() {
       description="Add your electronic signature to any PDF document"
       category="sign"
       icon={PenTool}
+      supportingContent={
+        <>
+          <h2>How to Sign a PDF</h2>
+          <p>
+            Upload the PDF you need to sign. Create your signature by drawing it on
+            the canvas, typing your name to generate one, or uploading an image of
+            your handwritten signature. Position it on the correct page, then click
+            Apply Signature to produce the signed document.
+          </p>
+          <h2>Signature Types</h2>
+          <p>
+            The draw option lets you sign with your mouse, trackpad, or touchscreen
+            for a natural handwritten look. The type option renders your name in a
+            script font. The upload option accepts a PNG or JPEG image of an existing
+            signature, which is useful if you have a scanned copy on file.
+          </p>
+          <h2>Security and Legal Considerations</h2>
+          <p>
+            Electronic signatures are legally recognized in most jurisdictions under
+            laws such as ESIGN and eIDAS. Your signature image is embedded directly
+            into the PDF and is not stored on the server after processing. For
+            contracts requiring qualified digital signatures, consult a certified
+            signing authority.
+          </p>
+        </>
+      }
     >
       {/* Step 1: Upload PDF */}
       <FileUploader

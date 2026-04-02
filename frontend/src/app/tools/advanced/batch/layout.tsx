@@ -1,14 +1,14 @@
 /**
- * Layout with SEO metadata for the Compare PDFs tool page.
+ * Layout with SEO metadata for the Batch Processing tool page.
  */
 
 import { generateToolMetadata, generateToolJsonLd, generateBreadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
-  title: "Compare PDFs",
-  description: "Compare two PDF documents and see the differences highlighted. Free, fast, and no account needed.",
-  path: "/tools/advanced/compare",
+  title: "Batch Processing",
+  description: "Process multiple PDFs at once — compress or flatten in bulk. Free, fast, and no account needed.",
+  path: "/tools/advanced/batch",
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -18,14 +18,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         data={generateBreadcrumbJsonLd([
           { name: "Home", path: "/" },
           { name: "Advanced", path: "/tools/advanced" },
-          { name: "Compare PDFs", path: "/tools/advanced/compare" },
+          { name: "Batch Processing", path: "/tools/advanced/batch" },
         ])}
       />
       <JsonLd
         data={generateToolJsonLd({
-          title: "Compare PDFs",
-          description: "Compare two PDF documents and see the differences highlighted. Free, fast, and no account needed.",
-          path: "/tools/advanced/compare",
+          title: "Batch Processing",
+          description: "Process multiple PDFs at once — compress or flatten in bulk. Free, fast, and no account needed.",
+          path: "/tools/advanced/batch",
         })}
       />
       {children}

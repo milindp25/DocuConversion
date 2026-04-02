@@ -31,13 +31,13 @@ DocuConversion is a freemium SaaS platform that provides 30+ PDF tools in one pl
 
 ## Key URLs
 
-- Homepage: https://docuconversion.com
-- Pricing: https://docuconversion.com/pricing
-- PDF to Word: https://docuconversion.com/tools/convert/pdf-to-word
-- Merge PDF: https://docuconversion.com/tools/organize/merge
-- Sign PDF: https://docuconversion.com/tools/sign/sign-pdf
-- Compress PDF: https://docuconversion.com/tools/organize/compress
-- Blog: https://docuconversion.com/blog
+- Homepage: https://www.docuconversion.com
+- Pricing: https://www.docuconversion.com/pricing
+- PDF to Word: https://www.docuconversion.com/tools/convert/pdf-to-word
+- Merge PDF: https://www.docuconversion.com/tools/organize/merge
+- Sign PDF: https://www.docuconversion.com/tools/sign/sign-pdf
+- Compress PDF: https://www.docuconversion.com/tools/organize/compress
+- Blog: https://www.docuconversion.com/blog
 
 ## Technical Details
 

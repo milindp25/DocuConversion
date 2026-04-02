@@ -32,6 +32,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/dashboard/", "/login", "/signup"],
       },
     ],
-    sitemap: "https://docuconversion.com/sitemap.xml",
+    sitemap: "https://www.docuconversion.com/sitemap.xml",
   };
 }
