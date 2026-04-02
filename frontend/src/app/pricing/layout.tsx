@@ -29,6 +29,8 @@ const PRICING_OFFERS_JSONLD = {
       priceCurrency: "USD",
       description: "50 operations/day, 10 MB file limit",
       url: `${SITE_URL}/pricing`,
+      availability: "https://schema.org/InStock",
+      priceValidUntil: "2025-12-31",
     },
     {
       "@type": "Offer",
@@ -38,6 +40,8 @@ const PRICING_OFFERS_JSONLD = {
       billingIncrement: "P1M",
       description: "100 operations/day, 50 MB limit, AI features, batch processing",
       url: `${SITE_URL}/pricing`,
+      availability: "https://schema.org/InStock",
+      priceValidUntil: "2025-12-31",
     },
     {
       "@type": "Offer",
@@ -47,6 +51,8 @@ const PRICING_OFFERS_JSONLD = {
       billingIncrement: "P1M",
       description: "Unlimited operations, 100 MB limit, API access, priority support",
       url: `${SITE_URL}/pricing`,
+      availability: "https://schema.org/InStock",
+      priceValidUntil: "2025-12-31",
     },
   ],
 };

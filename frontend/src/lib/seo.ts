@@ -164,7 +164,7 @@ export function generateArticleJsonLd(article: {
     datePublished: article.date,
     dateModified: article.date,
     author: {
-      "@type": "Organization",
+      "@type": "Person",
       name: article.author,
       url: SITE_URL,
     },
@@ -185,12 +185,15 @@ export const ORGANIZATION_JSONLD = {
   url: SITE_URL,
   description:
     "Free online PDF tools — convert, edit, sign, and organize PDFs. Fast, private, no account required.",
-  // TODO: add logo once OG image / brand assets are created
-  // logo: { "@type": "ImageObject", url: `${SITE_URL}/og-image.png` },
-  sameAs: [],
+  logo: {
+    "@type": "ImageObject",
+    url: `${SITE_URL}/opengraph-image`,
+    width: 1200,
+    height: 630,
+  },
 };
 
-/** WebSite JSON-LD for the homepage (includes SearchAction for Sitelinks Searchbox) */
+/** WebSite JSON-LD for the homepage */
 export const WEBSITE_JSONLD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -198,14 +201,6 @@ export const WEBSITE_JSONLD = {
   name: SITE_NAME,
   url: SITE_URL,
   publisher: { "@id": `${SITE_URL}/#organization` },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate: `${SITE_URL}/?q={search_term_string}`,
-    },
-    "query-input": "required name=search_term_string",
-  },
 };
 
 export { SITE_URL, SITE_NAME };

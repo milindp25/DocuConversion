@@ -2,8 +2,7 @@
  * Layout with SEO metadata for the Edit PDF category page.
  */
 
-import { generatePageMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
-import { JsonLd } from "@/components/seo/JsonLd";
+import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata = generatePageMetadata({
   title: "Edit PDF",
@@ -12,15 +11,5 @@ export const metadata = generatePageMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <JsonLd
-        data={generateBreadcrumbJsonLd([
-          { name: "Home", path: "/" },
-          { name: "Edit PDF", path: "/tools/edit" },
-        ])}
-      />
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }

@@ -64,6 +64,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         <link rel="dns-prefetch" href="https://us.i.posthog.com" />
+        <link rel="preconnect" href="https://us.i.posthog.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://us-assets.i.posthog.com" crossOrigin="anonymous" />
         <JsonLd data={ORGANIZATION_JSONLD} />
         <JsonLd data={WEBSITE_JSONLD} />
@@ -71,12 +72,14 @@ export default function RootLayout({
           data={{
             "@context": "https://schema.org",
             "@type": "WebApplication",
+            "@id": "https://www.docuconversion.com/#webapp",
             name: "DocuConversion",
             url: "https://www.docuconversion.com",
             description:
               "Convert, edit, sign, and organize PDFs — free, fast, private.",
             applicationCategory: "Productivity",
             operatingSystem: "Web",
+            provider: { "@id": "https://www.docuconversion.com/#organization" },
             offers: {
               "@type": "Offer",
               price: "0",
