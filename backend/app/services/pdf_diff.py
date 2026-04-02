@@ -97,7 +97,7 @@ class PdfDiffService:
             return result
 
         except Exception as e:
-            logger.error("PDF comparison failed: %s", str(e))
+            logger.exception("PDF comparison failed:")
             raise ConversionError(
                 "Failed to compare the PDF files. "
                 "One or both files may be corrupted."
@@ -153,7 +153,7 @@ class PdfDiffService:
             return output_path
 
         except Exception as e:
-            logger.error("PDF flattening failed: %s", str(e))
+            logger.exception("PDF flattening failed:")
             raise ConversionError(
                 "Failed to flatten the PDF. "
                 "The file may be corrupted or contain unsupported content."

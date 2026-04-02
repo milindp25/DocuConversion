@@ -126,6 +126,13 @@ export default function SummarizePdfPage() {
               </>
             )}
           </button>
+
+          {/* Subtle hint while AI is processing */}
+          {isProcessing && (
+            <p className="text-center text-xs text-gray-400 dark:text-gray-500 animate-pulse">
+              This may take a few seconds
+            </p>
+          )}
         </div>
       )}
 

@@ -8,7 +8,7 @@
 
 import { useCallback, useState } from "react";
 
-import { GitCompare, Loader2 } from "lucide-react";
+import { GitCompare, Loader2, CheckCircle2 } from "lucide-react";
 
 import { ToolPageLayout } from "@/components/tools/ToolPageLayout";
 import { FileUploader } from "@/components/tools/FileUploader";
@@ -179,49 +179,78 @@ export default function ComparePdfsPage() {
           role="region"
           aria-label="Comparison results"
         >
-          {/* Similarity score */}
-          <div className="flex items-center justify-center border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+          {/* Similarity score badge */}
+          <div className="flex items-center justify-center border-b border-gray-200 px-5 py-6 dark:border-gray-700">
             <div className="text-center">
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                {Math.round(result.similarity_score)}%
-              </p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Similarity score
-              </p>
+              <div
+                className={cn(
+                  "mx-auto inline-flex items-center gap-2 rounded-full px-6 py-3 text-lg font-bold shadow-sm",
+                  Math.round(result.similarity_score) === 100
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300"
+                    : result.similarity_score >= 80
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300"
+                      : result.similarity_score >= 50
+                        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300"
+                )}
+              >
+                <span className="text-3xl font-extrabold">
+                  {Math.round(result.similarity_score)}%
+                </span>
+                <span className="text-sm font-medium">similar</span>
+              </div>
+              {Math.round(result.similarity_score) === 100 && (
+                <div className="mt-3 flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-sm font-semibold">
+                    Documents are identical
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Diff output */}
-          <div className="p-5">
-            <div className="space-y-1 font-mono text-sm">
-              {result.diffs.map((diff, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "rounded px-3 py-1",
-                    diff.type === "added" &&
-                      "bg-green-50 text-green-800 dark:bg-green-950/50 dark:text-green-300",
-                    diff.type === "removed" &&
-                      "bg-red-50 text-red-800 line-through dark:bg-red-950/50 dark:text-red-300",
-                    diff.type === "unchanged" &&
-                      "text-gray-600 dark:text-gray-400"
-                  )}
-                >
-                  <span aria-hidden="true" className="mr-2 select-none">
-                    {diff.type === "added" ? "+" : diff.type === "removed" ? "-" : " "}
-                  </span>
-                  <span className="sr-only">
-                    {diff.type === "added"
-                      ? "Added: "
-                      : diff.type === "removed"
-                        ? "Removed: "
-                        : ""}
-                  </span>
-                  {diff.text}
-                </div>
-              ))}
+          {/* Diff output — code-diff style */}
+          {Math.round(result.similarity_score) < 100 && (
+            <div className="p-4">
+              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                {result.diffs.map((diff, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "border-b border-gray-100 px-4 py-1.5 font-mono text-sm last:border-b-0 dark:border-gray-800",
+                      diff.type === "added" &&
+                        "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-300",
+                      diff.type === "removed" &&
+                        "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300",
+                      diff.type === "unchanged" &&
+                        "bg-white text-gray-600 dark:bg-gray-900 dark:text-gray-400"
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "mr-3 inline-block w-4 select-none text-center font-bold",
+                        diff.type === "added" && "text-green-600 dark:text-green-400",
+                        diff.type === "removed" && "text-red-600 dark:text-red-400",
+                        diff.type === "unchanged" && "text-gray-300 dark:text-gray-600"
+                      )}
+                    >
+                      {diff.type === "added" ? "+" : diff.type === "removed" ? "\u2212" : " "}
+                    </span>
+                    <span className="sr-only">
+                      {diff.type === "added"
+                        ? "Added: "
+                        : diff.type === "removed"
+                          ? "Removed: "
+                          : ""}
+                    </span>
+                    {diff.text}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </ToolPageLayout>

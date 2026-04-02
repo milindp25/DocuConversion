@@ -23,6 +23,12 @@ export interface ToolPageLayoutProps {
   icon: React.ComponentType<{ className?: string }>;
   /** The tool-specific content (upload zone, options, results) */
   children: React.ReactNode;
+  /**
+   * Use a wider container (max-w-6xl) for editor-style tools
+   * that need horizontal space for a canvas + side panel.
+   * Default tools use max-w-2xl.
+   */
+  wide?: boolean;
 }
 
 /**
@@ -48,11 +54,12 @@ export function ToolPageLayout({
   category,
   icon: Icon,
   children,
+  wide = false,
 }: ToolPageLayoutProps) {
   const colors = TOOL_CATEGORY_COLORS[category];
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:px-8">
+    <main className={cn("mx-auto px-4 py-16 sm:px-6 lg:px-8", wide ? "max-w-6xl" : "max-w-2xl")}>
       {/* Tool header */}
       <div className="mb-10 text-center">
         <div

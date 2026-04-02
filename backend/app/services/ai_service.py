@@ -135,7 +135,7 @@ class AiService:
                 return full_text, page_count
 
         except Exception as e:
-            logger.error("PDF text extraction for AI failed: %s", str(e))
+            logger.exception("PDF text extraction for AI failed:")
             raise AiError(
                 "Failed to extract text from the PDF. "
                 "The file may be corrupted or contain only scanned images."
@@ -188,7 +188,7 @@ class AiService:
         except AiError:
             raise
         except Exception as e:
-            logger.error("PDF summarization failed: %s", str(e))
+            logger.exception("PDF summarization failed:")
             raise AiError(
                 "Failed to generate summary. The AI service may be temporarily "
                 "unavailable. Please try again."
@@ -272,7 +272,7 @@ class AiService:
         except AiError:
             raise
         except Exception as e:
-            logger.error("Chat with PDF failed: %s", str(e))
+            logger.exception("Chat with PDF failed:")
             raise AiError(
                 "Failed to generate an answer. The AI service may be temporarily "
                 "unavailable. Please try again."
@@ -348,7 +348,7 @@ class AiService:
         except AiError:
             raise
         except Exception as e:
-            logger.error("Data extraction failed: %s", str(e))
+            logger.exception("Data extraction failed:")
             raise AiError(
                 "Failed to extract structured data. The AI service may be "
                 "temporarily unavailable. Please try again."
@@ -437,7 +437,7 @@ class AiService:
         except AiError:
             raise
         except Exception as e:
-            logger.error("OCR failed: %s", str(e))
+            logger.exception("OCR failed:")
             raise AiError(
                 "Failed to OCR the PDF. The file may be corrupted or the "
                 "AI service may be temporarily unavailable."

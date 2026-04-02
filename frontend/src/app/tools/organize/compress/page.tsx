@@ -18,7 +18,7 @@ import { useFileProcessor } from "@/hooks/useFileProcessor";
 import { ACCEPTED_FILE_TYPES, MAX_FILE_SIZE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-type CompressionLevel = "low" | "recommended" | "maximum";
+type CompressionLevel = "low" | "recommended" | "high";
 
 const COMPRESSION_OPTIONS: {
   value: CompressionLevel;
@@ -36,7 +36,7 @@ const COMPRESSION_OPTIONS: {
     description: "Good balance of size and quality",
   },
   {
-    value: "maximum",
+    value: "high",
     label: "Maximum compression",
     description: "Smallest file, reduced quality",
   },
@@ -60,7 +60,7 @@ export default function CompressPdfPage() {
 
   const handleCompress = useCallback(() => {
     if (!file) return;
-    processFile(file, { compression_level: level });
+    processFile(file, { level });
   }, [file, level, processFile]);
 
   return (

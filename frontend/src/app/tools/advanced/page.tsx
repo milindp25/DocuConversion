@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 const ADVANCED_TOOLS = [
   { id: "compare", name: "Compare PDFs", description: "Compare two PDF documents and see the differences highlighted" },
   { id: "flatten", name: "Flatten PDF", description: "Flatten PDF form fields and annotations into the document" },
+  { id: "batch", name: "Batch Processing", description: "Apply the same operation to multiple PDFs at once and download as ZIP" },
 ] as const;
 
 /**

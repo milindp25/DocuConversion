@@ -2,8 +2,9 @@
 PDF editing service.
 
 Handles in-place modifications to PDF documents: adding text annotations,
-watermarks, page numbers, highlight regions, and geometric shapes.
-All operations use PyMuPDF for rendering onto existing PDF pages.
+watermarks, page numbers, highlight regions, geometric shapes, and
+freehand ink drawings. All operations use PyMuPDF for rendering onto
+existing PDF pages.
 """
 
 import logging
@@ -145,7 +146,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add text annotations: %s", str(e))
+            logger.exception("Failed to add text annotations:")
             raise EditingError(
                 "Failed to add text to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -237,7 +238,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add watermark: %s", str(e))
+            logger.exception("Failed to add watermark:")
             raise EditingError(
                 "Failed to add watermark to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -314,7 +315,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add page numbers: %s", str(e))
+            logger.exception("Failed to add page numbers:")
             raise EditingError(
                 "Failed to add page numbers to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -389,7 +390,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add highlights: %s", str(e))
+            logger.exception("Failed to add highlights:")
             raise EditingError(
                 "Failed to add highlights to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -505,8 +506,196 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add shapes: %s", str(e))
+            logger.exception("Failed to add shapes:")
             raise EditingError(
                 "Failed to add shapes to the PDF. "
                 "The file may be corrupted or contain unsupported content."
+            ) from e
+
+    @staticmethod
+    async def add_freehand_drawing(
+        input_path: Path, output_path: Path, drawings: list[dict]
+    ) -> Path:
+        """Add freehand ink annotations (polylines) to a PDF.
+
+        Each drawing is rendered as a polyline stroke on the specified
+        page. Points are normalized to [0, 1] and converted to absolute
+        page coordinates internally.
+
+        Args:
+            input_path: Path to the source PDF file.
+            output_path: Where to save the annotated PDF.
+            drawings: List of drawing dicts, each with keys:
+                page (int, 1-indexed), color (str hex), width (float,
+                stroke width in points), points (list of [x, y] pairs
+                with normalized coords in [0, 1]).
+
+        Returns:
+            Path to the annotated PDF file.
+
+        Raises:
+            EditingError: If drawing insertion fails.
+        """
+        try:
+            with fitz.open(str(input_path)) as doc:
+                for drawing in drawings:
+                    page_num = drawing["page"] - 1
+                    if page_num < 0 or page_num >= len(doc):
+                        raise EditingError(
+                            f"Page {drawing['page']} is out of range. "
+                            f"The document has {len(doc)} pages."
+                        )
+
+                    points = drawing.get("points", [])
+                    if len(points) < 2:
+                        raise EditingError(
+                            "Each drawing must have at least 2 points."
+                        )
+
+                    page = doc[page_num]
+                    rect = page.rect
+                    color = _hex_to_rgb(drawing.get("color", "#000000"))
+                    stroke_width = drawing.get("width", 2.0)
+
+                    # Convert normalized coords to absolute page points
+                    abs_points = [
+                        fitz.Point(pt[0] * rect.width, pt[1] * rect.height)
+                        for pt in points
+                    ]
+
+                    shape = page.new_shape()
+                    shape.draw_polyline(abs_points)
+                    shape.finish(
+                        color=color,
+                        width=stroke_width,
+                        closePath=False,
+                        fill=None,
+                        lineCap=1,  # Round caps for natural pen look
+                        lineJoin=1,  # Round joins
+                    )
+                    shape.commit()
+
+                doc.save(str(output_path))
+
+            logger.info(
+                "Added %d freehand drawings to PDF: %s -> %s",
+                len(drawings),
+                input_path.name,
+                output_path.name,
+            )
+            return output_path
+
+        except EditingError:
+            raise
+        except Exception as e:
+            logger.exception("Failed to add freehand drawings:")
+            raise EditingError(
+                "Failed to add freehand drawings to the PDF. "
+                "The file may be corrupted or contain unsupported content."
+            ) from e
+
+    @staticmethod
+    async def get_form_fields(input_path: Path) -> list[dict]:
+        """Extract all fillable form fields from a PDF.
+
+        Iterates every page and collects widget annotations (form fields)
+        with their name, type, current value, and page number.
+
+        Args:
+            input_path: Path to the source PDF file.
+
+        Returns:
+            List of dicts with keys: name, type, current_value, page.
+
+        Raises:
+            EditingError: If field extraction fails.
+        """
+        try:
+            fields: list[dict] = []
+            with fitz.open(str(input_path)) as doc:
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    for widget in page.widgets():
+                        field_type_map = {
+                            fitz.PDF_WIDGET_TYPE_TEXT: "text",
+                            fitz.PDF_WIDGET_TYPE_CHECKBOX: "checkbox",
+                            fitz.PDF_WIDGET_TYPE_COMBOBOX: "combobox",
+                            fitz.PDF_WIDGET_TYPE_LISTBOX: "listbox",
+                            fitz.PDF_WIDGET_TYPE_RADIOBUTTON: "radiobutton",
+                            fitz.PDF_WIDGET_TYPE_PUSHBUTTON: "pushbutton",
+                        }
+                        fields.append(
+                            {
+                                "name": widget.field_name or "",
+                                "type": field_type_map.get(
+                                    widget.field_type, "unknown"
+                                ),
+                                "current_value": widget.field_value or "",
+                                "page": page_num + 1,
+                            }
+                        )
+
+            logger.info(
+                "Extracted %d form fields from PDF: %s",
+                len(fields),
+                input_path.name,
+            )
+            return fields
+
+        except Exception as e:
+            logger.exception("Failed to extract form fields:")
+            raise EditingError(
+                "Failed to extract form fields from the PDF. "
+                "The file may be corrupted or not contain any forms."
+            ) from e
+
+    @staticmethod
+    async def fill_form(
+        input_path: Path, output_path: Path, field_values: dict[str, str]
+    ) -> Path:
+        """Fill form fields in a PDF.
+
+        Iterates all pages and widgets, setting the field_value for
+        each widget whose field_name matches a key in field_values.
+
+        Args:
+            input_path: Path to the source PDF file.
+            output_path: Where to save the filled PDF.
+            field_values: Dict mapping field names to values.
+
+        Returns:
+            Path to the filled PDF file.
+
+        Raises:
+            EditingError: If form filling fails.
+        """
+        try:
+            filled_count = 0
+            with fitz.open(str(input_path)) as doc:
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    for widget in page.widgets():
+                        field_name = widget.field_name or ""
+                        if field_name in field_values:
+                            widget.field_value = field_values[field_name]
+                            widget.update()
+                            filled_count += 1
+
+                doc.save(str(output_path))
+
+            logger.info(
+                "Filled %d form fields in PDF: %s -> %s",
+                filled_count,
+                input_path.name,
+                output_path.name,
+            )
+            return output_path
+
+        except EditingError:
+            raise
+        except Exception as e:
+            logger.exception("Failed to fill form fields:")
+            raise EditingError(
+                "Failed to fill form fields in the PDF. "
+                "The file may be corrupted or not contain fillable forms."
             ) from e

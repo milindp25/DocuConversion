@@ -34,6 +34,7 @@ const ALLOWED_PREFIXES = [
   "advanced/",
   "share/",
   "developer/",
+  "payments/",
 ];
 
 /**

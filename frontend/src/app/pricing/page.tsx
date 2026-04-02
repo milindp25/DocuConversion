@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -16,6 +16,8 @@ import {
   Sparkles,
   Zap,
   Building2,
+  Loader2,
+  CreditCard,
 } from "lucide-react";
 
 /** Shape of a single FAQ item */
@@ -44,6 +46,7 @@ export interface PricingTier {
   ctaLabel: string;
   ctaHref: string;
   ctaStyle: string;
+  ctaPlan?: string;
   icon: React.ElementType;
   iconColor: string;
   features: PricingFeature[];
@@ -90,6 +93,7 @@ const TIERS: PricingTier[] = [
     ctaLabel: "Start free trial",
     ctaHref: "/signup",
     ctaStyle: "bg-blue-600 text-white shadow-lg shadow-blue-600/25 hover:bg-blue-500",
+    ctaPlan: "pro",
     icon: Sparkles,
     iconColor: "text-blue-400",
     features: FEATURES,
@@ -198,9 +202,51 @@ function FaqAccordion({
 /**
  * Pricing page component.
  * Renders three tier cards and an FAQ section.
+ * Handles Stripe checkout for the Pro plan.
  */
 export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [stripeConfigured, setStripeConfigured] = useState<boolean>(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/pdf/payments/status")
+      .then((res) => res.json())
+      .then((data) => setStripeConfigured(data.configured === true))
+      .catch(() => setStripeConfigured(false));
+  }, []);
+
+  const handleCheckout = useCallback(async (plan: string) => {
+    setCheckoutLoading(plan);
+    setCheckoutError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("plan", plan);
+
+      const res = await fetch("/api/pdf/payments/create-checkout", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Failed to create checkout session.");
+      }
+
+      const data = await res.json();
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error ? err.message : "Something went wrong."
+      );
+    } finally {
+      setCheckoutLoading(null);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
@@ -224,11 +270,31 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* Checkout error banner */}
+      {checkoutError && (
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+            {checkoutError}
+          </div>
+        </div>
+      )}
+
+      {/* Stripe notice */}
+      <div className="mx-auto max-w-7xl px-4 pt-4 text-center sm:px-6 lg:px-8">
+        <p className="inline-flex items-center gap-2 rounded-full bg-gray-800/60 px-4 py-2 text-xs text-gray-400 ring-1 ring-gray-700/50">
+          <CreditCard className="h-3.5 w-3.5" />
+          Stripe checkout will redirect you to a secure payment page
+        </p>
+      </div>
+
       {/* Pricing Cards */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-3">
           {TIERS.map((tier, tierIndex) => {
             const tierKey = tierIndex === 0 ? "free" : tierIndex === 1 ? "pro" : "enterprise";
+            const isStripeCheckout = !!tier.ctaPlan;
+            const isLoading = checkoutLoading === tier.ctaPlan;
+
             return (
               <div
                 key={tier.name}
@@ -259,12 +325,30 @@ export default function PricingPage() {
                 </div>
 
                 {/* CTA */}
-                <Link
-                  href={tier.ctaHref}
-                  className={`mb-8 block rounded-xl px-6 py-3 text-center text-sm font-semibold transition-all duration-200 ${tier.ctaStyle}`}
-                >
-                  {tier.ctaLabel}
-                </Link>
+                {isStripeCheckout ? (
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(tier.ctaPlan!)}
+                    disabled={!stripeConfigured || isLoading}
+                    className={`mb-8 flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-center text-sm font-semibold transition-all duration-200 ${tier.ctaStyle} disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Redirecting...
+                      </>
+                    ) : (
+                      tier.ctaLabel
+                    )}
+                  </button>
+                ) : (
+                  <Link
+                    href={tier.ctaHref}
+                    className={`mb-8 block rounded-xl px-6 py-3 text-center text-sm font-semibold transition-all duration-200 ${tier.ctaStyle}`}
+                  >
+                    {tier.ctaLabel}
+                  </Link>
+                )}
 
                 {/* Feature list */}
                 <div className="flex-1 space-y-3">

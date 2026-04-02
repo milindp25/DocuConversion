@@ -7,9 +7,17 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
+import { getHistory, clearHistory, type FileHistoryEntry } from "@/lib/file-history";
+import {
+  getSignatures,
+  deleteSignature,
+  MAX_SIGNATURES_FREE,
+  type SavedSignature,
+} from "@/lib/signatures";
 import {
   FileText,
   Clock,
@@ -25,10 +33,19 @@ import {
   Sparkles,
   Lock,
   ArrowRight,
+  Trash2,
+  Plus,
+  Rocket,
+  Users,
+  MessageSquare,
+  UserCheck,
+  CloudCog,
+  Webhook,
+  Palette,
 } from "lucide-react";
 
 /** Supported sidebar navigation tabs */
-export type DashboardTab = "files" | "signatures" | "api-keys" | "settings";
+export type DashboardTab = "files" | "signatures" | "api-keys" | "settings" | "upcoming";
 
 /** Shape of a file entry in the Recent Files list */
 export interface RecentFile {
@@ -46,6 +63,7 @@ const SIDEBAR_NAV: { id: DashboardTab; label: string; icon: React.ElementType }[
   { id: "signatures", label: "Saved Signatures", icon: PenTool },
   { id: "api-keys", label: "API Keys", icon: Key },
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "upcoming", label: "Upcoming Features", icon: Rocket },
 ];
 
 /**
@@ -238,46 +256,84 @@ function ComingSoonCard({
 }
 
 /**
- * Recent files section — the default dashboard view.
- * Shows the empty state since persistent file history is not yet available.
+ * Format a relative date string from an ISO date.
+ */
+function formatRelativeDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+/**
+ * Recent files section — reads completed jobs from localStorage.
+ * Displays a table of file history entries with download links.
  */
 function RecentFilesSection() {
+  const [history, setHistory] = useState<FileHistoryEntry[]>([]);
+
+  useEffect(() => {
+    setHistory(getHistory());
+  }, []);
+
+  const handleClearHistory = () => {
+    clearHistory();
+    setHistory([]);
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-white">Recent Files</h2>
+        {history.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors duration-200 hover:bg-gray-800 hover:text-gray-200"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear history
+          </button>
+        )}
       </div>
 
       {/* Session notice */}
       <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
         <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-400" />
         <p className="text-sm text-blue-300/80">
-          File history is available during your current session. Persistent history coming soon.
+          File history is stored locally in your browser. Persistent server-side history coming soon.
         </p>
       </div>
 
-      {/* Empty state */}
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700 bg-gray-900/30 px-8 py-20 text-center">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800/50 ring-1 ring-gray-700">
-          <FileText className="h-8 w-8 text-gray-500" />
+      {history.length === 0 ? (
+        /* Empty state */
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700 bg-gray-900/30 px-8 py-20 text-center">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800/50 ring-1 ring-gray-700">
+            <FileText className="h-8 w-8 text-gray-500" />
+          </div>
+          <h3 className="text-lg font-medium text-white">No files yet</h3>
+          <p className="mt-2 max-w-sm text-sm text-gray-400">
+            Start by converting a PDF. Your recent files will appear here.
+          </p>
+          <Link
+            href="/tools/convert"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all duration-200 hover:bg-blue-500"
+          >
+            <Upload className="h-4 w-4" />
+            Convert a file
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-        <h3 className="text-lg font-medium text-white">No files yet</h3>
-        <p className="mt-2 max-w-sm text-sm text-gray-400">
-          Start by converting a PDF. Your recent files will appear here.
-        </p>
-        <Link
-          href="/tools/convert"
-          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all duration-200 hover:bg-blue-500"
-        >
-          <Upload className="h-4 w-4" />
-          Convert a file
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-
-      {/* File table — hidden by default, shown when files exist */}
-      {/* This is the template for when session-based files are available */}
-      <div className="mt-8 hidden">
+      ) : (
+        /* File table */
         <div className="overflow-hidden rounded-xl border border-gray-800">
           <table className="w-full">
             <thead>
@@ -300,33 +356,240 @@ function RecentFilesSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {/* Example row — will be mapped from session data */}
-              <tr className="transition-colors duration-150 hover:bg-gray-800/30">
-                <td className="flex items-center gap-3 px-4 py-3">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-blue-400" />
-                  <span className="truncate text-sm text-gray-200">example.pdf</span>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-400">PDF to Word</td>
-                <td className="px-4 py-3 text-sm text-gray-400">Today</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400 ring-1 ring-green-500/20">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Completed
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-blue-400 transition-colors duration-200 hover:bg-blue-500/10"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </button>
-                </td>
-              </tr>
+              {history.map((entry) => (
+                <tr
+                  key={entry.id}
+                  className="transition-colors duration-150 hover:bg-gray-800/30"
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-4 w-4 flex-shrink-0 text-blue-400" />
+                      <span className="truncate text-sm text-gray-200">
+                        {entry.filename}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-400">
+                    {entry.operation}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-400">
+                    {formatRelativeDate(entry.date)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400 ring-1 ring-green-500/20">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Completed
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <a
+                      href={entry.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-blue-400 transition-colors duration-200 hover:bg-blue-500/10"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </a>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Saved signatures section — displays signature preview cards from localStorage.
+ * Users can delete existing signatures or navigate to the sign tool to add new ones.
+ */
+function SavedSignaturesSection() {
+  const [signatures, setSignatures] = useState<SavedSignature[]>([]);
+
+  useEffect(() => {
+    setSignatures(getSignatures());
+  }, []);
+
+  const handleDelete = (id: string) => {
+    deleteSignature(id);
+    setSignatures(getSignatures());
+  };
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white">Saved Signatures</h2>
+        <span className="text-sm text-gray-400">
+          {signatures.length} of {MAX_SIGNATURES_FREE} signatures saved
+        </span>
+      </div>
+
+      {signatures.length === 0 ? (
+        /* Empty state */
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700 bg-gray-900/30 px-8 py-20 text-center">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800/50 ring-1 ring-gray-700">
+            <PenTool className="h-8 w-8 text-gray-500" />
+          </div>
+          <h3 className="text-lg font-medium text-white">No saved signatures</h3>
+          <p className="mt-2 max-w-sm text-sm text-gray-400">
+            Create and save your electronic signature to reuse across documents.
+          </p>
+          <Link
+            href="/tools/sign/sign-pdf"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all duration-200 hover:bg-blue-500"
+          >
+            <Plus className="h-4 w-4" />
+            Create a signature
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      ) : (
+        <div>
+          {/* Signature cards grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {signatures.map((sig) => (
+              <div
+                key={sig.id}
+                className="group relative overflow-hidden rounded-xl border border-gray-800 bg-gray-900/60 p-4 backdrop-blur-sm transition-colors duration-200 hover:border-gray-700"
+              >
+                {/* Signature preview */}
+                <div className="flex h-24 items-center justify-center rounded-lg bg-white/5 p-2">
+                  <Image
+                    src={sig.imageDataUrl}
+                    alt={sig.name}
+                    width={192}
+                    height={80}
+                    className="max-h-20 w-auto object-contain"
+                    unoptimized
+                  />
+                </div>
+
+                {/* Signature info */}
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">
+                      {sig.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(sig.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(sig.id)}
+                    className="rounded-lg p-1.5 text-gray-500 opacity-0 transition-all duration-200 hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                    aria-label={`Delete signature: ${sig.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Add new card — only show if under limit */}
+            {signatures.length < MAX_SIGNATURES_FREE && (
+              <Link
+                href="/tools/sign/sign-pdf"
+                className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 bg-gray-900/30 p-4 text-center transition-colors duration-200 hover:border-gray-600 hover:bg-gray-900/50"
+              >
+                <div className="flex h-24 items-center justify-center">
+                  <Plus className="h-8 w-8 text-gray-600" />
+                </div>
+                <p className="mt-3 text-sm font-medium text-gray-400">
+                  Add new signature
+                </p>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Planned features for the Upcoming Features tab */
+const UPCOMING_FEATURES = [
+  {
+    icon: Users,
+    iconColor: "text-green-400",
+    bgColor: "bg-green-500/10 ring-green-500/20",
+    title: "Real-time Collaboration",
+    description: "Edit and review PDFs together with your team in real time. See live cursors and annotations.",
+  },
+  {
+    icon: MessageSquare,
+    iconColor: "text-yellow-400",
+    bgColor: "bg-yellow-500/10 ring-yellow-500/20",
+    title: "Comment Threads",
+    description: "Add threaded comments to specific areas of your documents for structured feedback and review.",
+  },
+  {
+    icon: UserCheck,
+    iconColor: "text-pink-400",
+    bgColor: "bg-pink-500/10 ring-pink-500/20",
+    title: "Multi-signer Workflows",
+    description: "Route documents to multiple signers with defined signing order and deadline tracking.",
+  },
+  {
+    icon: CloudCog,
+    iconColor: "text-sky-400",
+    bgColor: "bg-sky-500/10 ring-sky-500/20",
+    title: "Google Drive / Dropbox Integration",
+    description: "Import and export files directly from your cloud storage. Automatic sync and backup.",
+  },
+  {
+    icon: Webhook,
+    iconColor: "text-orange-400",
+    bgColor: "bg-orange-500/10 ring-orange-500/20",
+    title: "Webhooks & Zapier",
+    description: "Automate workflows with webhook notifications and Zapier integration for 5,000+ apps.",
+  },
+  {
+    icon: Palette,
+    iconColor: "text-violet-400",
+    bgColor: "bg-violet-500/10 ring-violet-500/20",
+    title: "Custom Branding",
+    description: "Add your company logo, colors, and branding to generated PDFs and share pages.",
+  },
+];
+
+/**
+ * Upcoming Features section — shows a grid of planned features with badges.
+ */
+function UpcomingFeaturesSection() {
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-white">Upcoming Features</h2>
+        <p className="mt-2 text-sm text-gray-400">
+          These features are on our roadmap. Stay tuned for updates.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {UPCOMING_FEATURES.map((feature) => (
+          <div
+            key={feature.title}
+            className="flex flex-col rounded-xl border border-gray-800 bg-gray-900/40 p-6 backdrop-blur-sm transition-colors duration-200 hover:border-gray-700"
+          >
+            <div
+              className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg ring-1 ${feature.bgColor}`}
+            >
+              <feature.icon className={`h-5 w-5 ${feature.iconColor}`} />
+            </div>
+            <h3 className="text-sm font-semibold text-white">{feature.title}</h3>
+            <p className="mt-2 flex-1 text-xs leading-relaxed text-gray-400">
+              {feature.description}
+            </p>
+            <span className="mt-4 inline-flex w-fit items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-400 ring-1 ring-blue-500/20">
+              <Sparkles className="h-3 w-3" />
+              Coming Soon
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -340,14 +603,7 @@ function DashboardContent({ activeTab }: { activeTab: DashboardTab }) {
     case "files":
       return <RecentFilesSection />;
     case "signatures":
-      return (
-        <ComingSoonCard
-          title="Saved Signatures"
-          description="Save your electronic signatures and reuse them across documents. Draw, type, or upload your signature."
-          icon={PenTool}
-          iconColor="text-orange-400"
-        />
-      );
+      return <SavedSignaturesSection />;
     case "api-keys":
       return (
         <ComingSoonCard
@@ -359,13 +615,26 @@ function DashboardContent({ activeTab }: { activeTab: DashboardTab }) {
       );
     case "settings":
       return (
-        <ComingSoonCard
-          title="Settings"
-          description="Manage your account preferences, notification settings, and subscription details."
-          icon={Settings}
-          iconColor="text-gray-400"
-        />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/40 px-8 py-16 text-center backdrop-blur-sm">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800/50 ring-1 ring-gray-700">
+            <Settings className="h-8 w-8 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-white">Account Settings</h2>
+          <p className="mt-2 max-w-sm text-sm text-gray-400">
+            Manage your profile, preferences, connected accounts, and more.
+          </p>
+          <Link
+            href="/dashboard/settings"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all duration-200 hover:bg-blue-500"
+          >
+            <Settings className="h-4 w-4" />
+            Open Settings
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       );
+    case "upcoming":
+      return <UpcomingFeaturesSection />;
     default:
       return <RecentFilesSection />;
   }

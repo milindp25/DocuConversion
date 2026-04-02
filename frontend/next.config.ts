@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Next.js configuration for DocuConversion.
@@ -50,4 +51,18 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Only print Sentry output when running in CI to keep local builds clean
+  silent: !process.env.CI,
+  // Upload a larger set of source maps for better stack traces
+  widenClientFileUpload: true,
+  // Delete uploaded source maps after they are sent to Sentry
+  sourcemaps: {
+    filesToDeleteAfterUpload: [".next/static/**/*.map"],
+  },
+  // Not deploying to Vercel, so disable automatic monitor creation
+  automaticVercelMonitors: false,
+});

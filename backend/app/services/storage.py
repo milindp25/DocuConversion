@@ -79,7 +79,7 @@ class StorageService:
         except StorageError:
             raise
         except Exception as e:
-            logger.error("Failed to read local file '%s' for upload: %s", file_path, str(e))
+            logger.exception("Failed to read local file '%s' for upload", file_path)
             raise StorageError(
                 "Failed to read the processed file for upload."
             ) from e
@@ -146,7 +146,7 @@ class LocalStorageService(StorageService):
             )
             return key
         except Exception as e:
-            logger.error("Local storage write failed for key '%s': %s", key, str(e))
+            logger.exception("Local storage write failed for key '%s'", key)
             raise StorageError("Failed to save file locally.") from e
 
     async def generate_download_url(
@@ -179,7 +179,7 @@ class LocalStorageService(StorageService):
                 file_path.unlink()
                 logger.info("Deleted local file: %s", key)
         except Exception as e:
-            logger.error("Local delete failed for key '%s': %s", key, str(e))
+            logger.exception("Local delete failed for key '%s'", key)
             raise StorageError("Failed to delete file.") from e
 
 
@@ -214,7 +214,7 @@ class CloudflareR2StorageService(StorageService):
             self._bucket = settings.r2_bucket_name
             logger.info("CloudflareR2StorageService initialized for bucket '%s'", self._bucket)
         except Exception as e:
-            logger.error("Failed to initialize R2 storage client: %s", str(e))
+            logger.exception("Failed to initialize R2 storage client:")
             raise StorageError(
                 "Storage service is unavailable. Please try again later."
             ) from e
@@ -252,7 +252,7 @@ class CloudflareR2StorageService(StorageService):
             )
             return key
         except Exception as e:
-            logger.error("R2 upload failed for key '%s': %s", key, str(e))
+            logger.exception("R2 upload failed for key '%s'", key)
             raise StorageError(
                 "Failed to upload file to storage. Please try again."
             ) from e
@@ -283,7 +283,7 @@ class CloudflareR2StorageService(StorageService):
             logger.info("Generated download URL for key '%s' (expires in %ds)", key, expires_in)
             return url
         except Exception as e:
-            logger.error("Failed to generate download URL for key '%s': %s", key, str(e))
+            logger.exception("Failed to generate download URL for key '%s'", key)
             raise StorageError(
                 "Failed to generate download link. Please try again."
             ) from e
@@ -303,7 +303,7 @@ class CloudflareR2StorageService(StorageService):
             )
             logger.info("Deleted object from R2: %s", key)
         except Exception as e:
-            logger.error("R2 delete failed for key '%s': %s", key, str(e))
+            logger.exception("R2 delete failed for key '%s'", key)
             raise StorageError(
                 "Failed to delete file from storage. Please try again."
             ) from e

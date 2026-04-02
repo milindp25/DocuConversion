@@ -6,15 +6,36 @@ This module initializes the FastAPI application, configures middleware
 central hub for the backend service.
 """
 
+import logging as _logging
+import time
+import uuid
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from app.api import ai, advanced, convert, developer, edit, jobs, organize, preview, share, sign, secure
+from app.api import ai, advanced, convert, developer, edit, jobs, organize, payments, preview, share, sign, secure
 from app.core.config import settings
+from app.core.exceptions import DocuConversionError, handle_docuconversion_error
+from app.core.logging_config import configure_logging, request_id_ctx
+
+# Initialise logging before anything else so all module-level loggers
+# inherit the correct configuration.
+configure_logging(log_level=settings.log_level, log_format=settings.log_format)
+
+import sentry_sdk  # noqa: E402 — must come after logging is set up
+
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+        integrations=[],  # FastAPI integration added via SentryAsgiMiddleware below
+    )
 
 # Disable OpenAPI docs in production to reduce attack surface
 _docs_url = None if settings.environment == "production" else "/docs"
@@ -34,6 +55,63 @@ app = FastAPI(
 # Attach the limiter to app state so slowapi middleware can access it
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# --- Sentry ASGI middleware (captures unhandled exceptions and traces) ---
+if settings.sentry_dsn:
+    from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+    app.add_middleware(SentryAsgiMiddleware)
+
+# --- HTTP request logging middleware ---
+_req_logger = _logging.getLogger("docuconversion.requests")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Assign a correlation ID to every request, log it, and return it
+    as the X-Request-ID response header so clients can reference it."""
+    # Honour an existing ID forwarded by a gateway/load-balancer, or mint one.
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request_id_ctx.set(req_id)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+
+    _req_logger.info(
+        "HTTP %s %s → %d (%.0fms)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+
+    # Echo the ID back so the frontend can include it in bug reports.
+    response.headers["X-Request-ID"] = req_id
+    return response
+
+
+@app.exception_handler(DocuConversionError)
+async def docuconversion_error_handler(
+    request: Request, exc: DocuConversionError
+) -> JSONResponse:
+    """Global handler for all DocuConversion domain exceptions.
+
+    Catches custom exceptions raised from dependencies (e.g. tier-limit
+    checks) that bypass per-endpoint try/except blocks, ensuring
+    clients always receive a structured JSON error instead of a 500.
+
+    Args:
+        request: The incoming request.
+        exc: The domain exception that was raised.
+
+    Returns:
+        A JSONResponse with the appropriate HTTP status and detail message.
+    """
+    http_exc = handle_docuconversion_error(exc)
+    return JSONResponse(
+        status_code=http_exc.status_code,
+        content={"detail": http_exc.detail},
+    )
 
 # Configure CORS with explicit allowed methods and headers
 app.add_middleware(
@@ -59,6 +137,7 @@ app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(advanced.router, prefix="/api/advanced", tags=["Advanced"])
 app.include_router(share.router, prefix="/api/share", tags=["Share"])
 app.include_router(developer.router, prefix="/api/developer", tags=["Developer"])
+app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
 
 
 @app.get("/health", tags=["Health"])

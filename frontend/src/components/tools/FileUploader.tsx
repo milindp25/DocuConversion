@@ -54,7 +54,9 @@ function validateFile(
   }
 
   if (file.size > maxFileSize) {
-    return `File is too large. Maximum size is ${formatFileSize(maxFileSize)}.`;
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(0);
+    return `File is too large (${fileSizeMB} MB). Maximum for free tier is ${maxSizeMB} MB. Sign up for a free account to upload up to 25 MB, or upgrade to Pro for 100 MB.`;
   }
 
   if (file.size === 0) {

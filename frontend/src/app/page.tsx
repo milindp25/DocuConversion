@@ -89,6 +89,8 @@ const POPULAR_TOOLS = [
       { name: "PDF to PowerPoint", href: "/tools/convert/pdf-to-powerpoint", icon: Presentation, color: "text-blue-400" },
       { name: "PDF to Image", href: "/tools/convert/pdf-to-image", icon: Image, color: "text-blue-400" },
       { name: "Word to PDF", href: "/tools/convert/word-to-pdf", icon: FileText, color: "text-blue-400" },
+      { name: "Excel to PDF", href: "/tools/convert/excel-to-pdf", icon: FileSpreadsheet, color: "text-blue-400" },
+      { name: "PowerPoint to PDF", href: "/tools/convert/pptx-to-pdf", icon: Presentation, color: "text-blue-400" },
     ],
   },
   {

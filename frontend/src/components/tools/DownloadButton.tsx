@@ -19,6 +19,8 @@ export interface DownloadButtonProps {
   fileName: string;
   /** File size of the result (for display) */
   fileSize?: number;
+  /** Optional callback to reset state and process another file */
+  onReset?: () => void;
 }
 
 /**
@@ -34,10 +36,16 @@ export interface DownloadButtonProps {
  * />
  * ```
  */
+/**
+ * DownloadButton renders a prominent call-to-action button for downloading
+ * the processed file. Optionally shows a "Process another file" link when
+ * `onReset` is provided.
+ */
 export function DownloadButton({
   downloadUrl,
   fileName,
   fileSize,
+  onReset,
 }: DownloadButtonProps) {
   return (
     <div className="flex flex-col items-center gap-3">
@@ -47,9 +55,11 @@ export function DownloadButton({
         <span>Download ready</span>
       </div>
 
-      {/* Download button with shine animation */}
+      {/* Download button with shine animation.
+          Routes through /api/download so Content-Disposition: attachment is set
+          server-side — the HTML download attribute is ignored for cross-origin URLs. */}
       <a
-        href={downloadUrl}
+        href={`/api/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(fileName)}`}
         download={fileName}
         className={cn(
           "btn-shine inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-4 text-white shadow-lg shadow-blue-500/25 transition-all duration-200",
@@ -72,6 +82,17 @@ export function DownloadButton({
 
         <Download className="h-5 w-5 ml-1" aria-hidden="true" />
       </a>
+
+      {onReset && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-sm text-gray-400 hover:text-white transition-colors"
+          aria-label="Process another file"
+        >
+          &#8635; Process another file
+        </button>
+      )}
     </div>
   );
 }
