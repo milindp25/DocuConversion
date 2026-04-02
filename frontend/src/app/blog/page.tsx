@@ -12,6 +12,17 @@ export const metadata: Metadata = {
   title: "Blog — PDF Tips & Guides",
   description:
     "Learn how to convert, compress, and sign PDFs with free tips and step-by-step guides from the DocuConversion team.",
+  alternates: {
+    canonical: "https://docuconversion.com/blog",
+  },
+  openGraph: {
+    title: "Blog — PDF Tips & Guides | DocuConversion",
+    description:
+      "Learn how to convert, compress, and sign PDFs with free tips and step-by-step guides.",
+    url: "https://docuconversion.com/blog",
+    siteName: "DocuConversion",
+    type: "website",
+  },
 };
 
 /** Blog article metadata used to render the listing cards */

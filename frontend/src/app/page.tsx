@@ -171,6 +171,9 @@ export default function HomePage() {
       {/* Tool Categories Grid */}
       <section className="bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="mb-8 text-center text-2xl font-semibold text-white">
+            All PDF tools
+          </h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {TOOL_CATEGORIES.map((category) => (
               <Link
@@ -228,6 +231,9 @@ export default function HomePage() {
       {/* Value Props */}
       <section className="bg-gradient-to-b from-gray-950 via-gray-900/80 to-gray-950 py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="mb-12 text-center text-2xl font-semibold text-white">
+            Why DocuConversion?
+          </h2>
           <div className="grid gap-12 md:grid-cols-3">
             <div className="text-center">
               <div className="relative mx-auto flex h-16 w-16 items-center justify-center">

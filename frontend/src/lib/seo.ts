@@ -1,10 +1,13 @@
 /**
  * SEO metadata utilities for DocuConversion.
- * Provides a reusable helper to generate consistent OpenGraph and
- * Twitter Card metadata for all tool pages.
+ * Provides reusable helpers to generate consistent metadata, OpenGraph,
+ * Twitter Card, and canonical tags for all pages.
  */
 
 import type { Metadata } from "next";
+
+const SITE_URL = "https://docuconversion.com";
+const SITE_NAME = "DocuConversion";
 
 /** Input shape for generating tool page metadata */
 export interface ToolMetadataInput {
@@ -17,27 +20,63 @@ export interface ToolMetadataInput {
 }
 
 /**
- * Generates Next.js Metadata for a tool page, including OpenGraph
- * and Twitter Card tags for optimal social sharing.
- *
- * @param tool - Tool page metadata input
- * @returns Next.js Metadata object
+ * Generates Next.js Metadata for a tool page, including canonical,
+ * OpenGraph, and Twitter Card tags for optimal SEO and social sharing.
  */
 export function generateToolMetadata(tool: ToolMetadataInput): Metadata {
+  const canonicalUrl = `${SITE_URL}${tool.path}`;
   return {
-    title: `${tool.title} — Free Online Tool | DocuConversion`,
+    title: `${tool.title} — Free Online Tool`,
     description: tool.description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
-      title: `${tool.title} | DocuConversion`,
+      title: `${tool.title} — Free Online Tool | ${SITE_NAME}`,
       description: tool.description,
-      url: `https://docuconversion.com${tool.path}`,
-      siteName: "DocuConversion",
+      url: canonicalUrl,
+      siteName: SITE_NAME,
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: tool.title,
+      title: `${tool.title} | ${SITE_NAME}`,
       description: tool.description,
+    },
+  };
+}
+
+/**
+ * Generates standard Next.js Metadata for any non-tool page.
+ * Includes canonical, OG, and Twitter tags.
+ */
+export function generatePageMetadata({
+  title,
+  description,
+  path,
+}: {
+  title: string;
+  description: string;
+  path: string;
+}): Metadata {
+  const canonicalUrl = `${SITE_URL}${path}`;
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      url: canonicalUrl,
+      siteName: SITE_NAME,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | ${SITE_NAME}`,
+      description,
     },
   };
 }
@@ -46,9 +85,6 @@ export function generateToolMetadata(tool: ToolMetadataInput): Metadata {
  * Generates JSON-LD structured data for a tool page.
  * Returns a Schema.org SoftwareApplication object that search engines
  * use for rich result snippets.
- *
- * @param tool - Tool page metadata input
- * @returns JSON-LD object suitable for the JsonLd component
  */
 export function generateToolJsonLd(
   tool: ToolMetadataInput
@@ -56,9 +92,9 @@ export function generateToolJsonLd(
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: `${tool.title} — DocuConversion`,
+    name: `${tool.title} — ${SITE_NAME}`,
     description: tool.description,
-    url: `https://docuconversion.com${tool.path}`,
+    url: `${SITE_URL}${tool.path}`,
     applicationCategory: "Productivity",
     operatingSystem: "Web",
     offers: {
@@ -68,3 +104,65 @@ export function generateToolJsonLd(
     },
   };
 }
+
+/**
+ * Generates BreadcrumbList JSON-LD for any page.
+ * @param crumbs Array of {name, path} pairs from root to current page
+ */
+export function generateBreadcrumbJsonLd(
+  crumbs: { name: string; path: string }[]
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((crumb, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: crumb.name,
+      item: `${SITE_URL}${crumb.path}`,
+    })),
+  };
+}
+
+/**
+ * Generates FAQPage JSON-LD for a page with FAQ content.
+ */
+export function generateFaqJsonLd(
+  faqs: { question: string; answer: string }[]
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+}
+
+/** Organization JSON-LD for the homepage */
+export const ORGANIZATION_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": `${SITE_URL}/#organization`,
+  name: SITE_NAME,
+  url: SITE_URL,
+  description:
+    "Free online PDF tools — convert, edit, sign, and organize PDFs. Fast, private, no account required.",
+};
+
+/** WebSite JSON-LD for the homepage */
+export const WEBSITE_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${SITE_URL}/#website`,
+  name: SITE_NAME,
+  url: SITE_URL,
+  publisher: { "@id": `${SITE_URL}/#organization` },
+};
+
+export { SITE_URL, SITE_NAME };

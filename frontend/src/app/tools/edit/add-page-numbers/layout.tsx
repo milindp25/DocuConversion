@@ -2,7 +2,8 @@
  * Layout with SEO metadata for the Add Page Numbers tool page.
  */
 
-import { generateToolMetadata } from "@/lib/seo";
+import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
   title: "Add Page Numbers",
@@ -11,5 +12,16 @@ export const metadata = generateToolMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd
+        data={generateBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Edit", path: "/tools/edit" },
+          { name: "Add Page Numbers", path: "/tools/edit/add-page-numbers" },
+        ])}
+      />
+      {children}
+    </>
+  );
 }

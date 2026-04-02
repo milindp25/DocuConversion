@@ -2,7 +2,8 @@
  * Layout with SEO metadata for the Sign PDF tool page.
  */
 
-import { generateToolMetadata } from "@/lib/seo";
+import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
   title: "Sign PDF",
@@ -11,5 +12,16 @@ export const metadata = generateToolMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd
+        data={generateBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Sign", path: "/tools/sign" },
+          { name: "Sign PDF", path: "/tools/sign/sign-pdf" },
+        ])}
+      />
+      {children}
+    </>
+  );
 }

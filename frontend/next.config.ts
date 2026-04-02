@@ -27,7 +27,14 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.r2.cloudflarestorage.com; font-src 'self' data:; connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}`,
+            value: [
+              `default-src 'self'`,
+              `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us-assets.i.posthog.com`,
+              `style-src 'self' 'unsafe-inline'`,
+              `img-src 'self' data: https://*.r2.cloudflarestorage.com`,
+              `font-src 'self' data:`,
+              `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} https://us.i.posthog.com https://*.sentry.io`,
+            ].join("; "),
           },
           {
             key: "X-Frame-Options",
@@ -63,6 +70,9 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     filesToDeleteAfterUpload: [".next/static/**/*.map"],
   },
-  // Not deploying to Vercel, so disable automatic monitor creation
-  automaticVercelMonitors: false,
+  // Swallow source map upload errors so builds don't fail when the
+  // Sentry project/org aren't configured yet in the deployment env.
+  errorHandler: (err) => {
+    console.warn("[sentry] Source map upload failed (non-fatal):", err.message);
+  },
 });

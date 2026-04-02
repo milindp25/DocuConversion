@@ -2,7 +2,8 @@
  * Layout with SEO metadata for the PDF to Excel tool page.
  */
 
-import { generateToolMetadata } from "@/lib/seo";
+import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
   title: "PDF to Excel",
@@ -11,5 +12,16 @@ export const metadata = generateToolMetadata({
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd
+        data={generateBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Convert", path: "/tools/convert" },
+          { name: "PDF to Excel", path: "/tools/convert/pdf-to-excel" },
+        ])}
+      />
+      {children}
+    </>
+  );
 }

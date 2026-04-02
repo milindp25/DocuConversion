@@ -13,6 +13,7 @@ import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { GlobalDropZone } from "@/components/tools/GlobalDropZone";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { ORGANIZATION_JSONLD, WEBSITE_JSONLD } from "@/lib/seo";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import "./globals.css";
 
@@ -22,8 +23,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://docuconversion.com"),
   title: {
-    default: `${APP_NAME} — Convert, Edit & Sign PDFs Online`,
+    default: `${APP_NAME} — Free Online PDF Tools: Convert, Edit & Sign`,
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
@@ -36,6 +38,21 @@ export const metadata: Metadata = {
     "compress PDF",
     "free PDF tools",
   ],
+  alternates: {
+    canonical: "https://docuconversion.com",
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: `${APP_NAME} — Free Online PDF Tools`,
+    description: APP_DESCRIPTION,
+    url: "https://docuconversion.com",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${APP_NAME} — Free Online PDF Tools`,
+    description: APP_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
@@ -46,6 +63,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
+        <JsonLd data={ORGANIZATION_JSONLD} />
+        <JsonLd data={WEBSITE_JSONLD} />
         <JsonLd
           data={{
             "@context": "https://schema.org",
