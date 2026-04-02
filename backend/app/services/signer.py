@@ -97,7 +97,7 @@ class SignatureService:
         except SignatureError:
             raise
         except Exception as e:
-            logger.error("Failed to apply signature: %s", str(e))
+            logger.exception("Failed to apply signature:")
             raise SignatureError(
                 "Failed to apply the signature to the PDF. "
                 "The PDF or signature image may be corrupted."
@@ -207,7 +207,7 @@ class SignatureService:
         except SignatureError:
             raise
         except Exception as e:
-            logger.error("Failed to generate text signature: %s", str(e))
+            logger.exception("Failed to generate text signature:")
             raise SignatureError(
                 "Failed to generate the signature image. "
                 "Please try again with different text or style."

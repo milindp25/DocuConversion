@@ -57,7 +57,7 @@ class OrganizationService:
             return output_path
 
         except Exception as e:
-            logger.error("PDF merge failed: %s", str(e))
+            logger.exception("PDF merge failed:")
             raise OrganizationError(
                 "Failed to merge PDF files. One or more files may be corrupted."
             ) from e
@@ -103,7 +103,7 @@ class OrganizationService:
             return output_paths
 
         except Exception as e:
-            logger.error("PDF split failed: %s", str(e))
+            logger.exception("PDF split failed:")
             raise OrganizationError(
                 "Failed to split the PDF. The file may be corrupted or the page range is invalid."
             ) from e
@@ -208,7 +208,7 @@ class OrganizationService:
             }
 
         except Exception as e:
-            logger.error("PDF compression failed: %s", str(e))
+            logger.exception("PDF compression failed:")
             raise OrganizationError(
                 "Failed to compress the PDF. The file may be corrupted."
             ) from e
@@ -275,7 +275,7 @@ class OrganizationService:
         except OrganizationError:
             raise
         except Exception as e:
-            logger.error("PDF rotation failed: %s", str(e))
+            logger.exception("PDF rotation failed:")
             raise OrganizationError(
                 "Failed to rotate PDF pages. The file may be corrupted "
                 "or the page specification is invalid."
@@ -327,7 +327,7 @@ class OrganizationService:
         except OrganizationError:
             raise
         except Exception as e:
-            logger.error("PDF reorder failed: %s", str(e))
+            logger.exception("PDF reorder failed:")
             raise OrganizationError(
                 "Failed to reorder PDF pages. "
                 "The file may be corrupted or the page order is invalid."
@@ -392,7 +392,7 @@ class OrganizationService:
         except OrganizationError:
             raise
         except Exception as e:
-            logger.error("PDF page removal failed: %s", str(e))
+            logger.exception("PDF page removal failed:")
             raise OrganizationError(
                 "Failed to remove pages from the PDF. "
                 "The file may be corrupted or the page numbers are invalid."
@@ -454,7 +454,7 @@ class OrganizationService:
         except OrganizationError:
             raise
         except Exception as e:
-            logger.error("PDF bookmark addition failed: %s", str(e))
+            logger.exception("PDF bookmark addition failed:")
             raise OrganizationError(
                 "Failed to add bookmarks to the PDF. "
                 "The file may be corrupted or the bookmark data is invalid."
@@ -512,7 +512,7 @@ class OrganizationService:
         except OrganizationError:
             raise
         except Exception as e:
-            logger.error("PDF page insertion failed: %s", str(e))
+            logger.exception("PDF page insertion failed:")
             raise OrganizationError(
                 "Failed to insert pages into the PDF. "
                 "One or both files may be corrupted."

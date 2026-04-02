@@ -299,7 +299,7 @@ async def _compress_pdf(input_path: Path, output_path: Path) -> Path:
         return output_path
 
     except Exception as e:
-        logger.error("Batch compress failed: %s", str(e))
+        logger.exception("Batch compress failed:")
         raise ConversionError(
             "Failed to compress PDF. The file may be corrupted."
         ) from e

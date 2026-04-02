@@ -264,7 +264,7 @@ async def redact_content(
             job_manager.fail_job(job_id, str(e))
         raise handle_docuconversion_error(e) from e
     except Exception as e:
-        logger.error("Redaction failed: %s", str(e))
+        logger.exception("Redaction failed:")
         if "job_id" in locals():
             job_manager.fail_job(job_id, str(e))
         raise handle_docuconversion_error(

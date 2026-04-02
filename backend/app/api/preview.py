@@ -89,7 +89,7 @@ async def get_pdf_info(request: Request, file: UploadFile = File(...)) -> PdfInf
     except FileValidationError as e:
         raise handle_docuconversion_error(e) from e
     except Exception as e:
-        logger.error("Failed to extract PDF info: %s", str(e))
+        logger.exception("Failed to extract PDF info:")
         raise handle_docuconversion_error(
             EditingError(
                 "Failed to read PDF metadata. The file may be corrupted."
@@ -176,7 +176,7 @@ async def render_page(
     except FileValidationError as e:
         raise handle_docuconversion_error(e) from e
     except Exception as e:
-        logger.error("Failed to render PDF page: %s", str(e))
+        logger.exception("Failed to render PDF page:")
         raise handle_docuconversion_error(
             EditingError(
                 "Failed to render the PDF page. The file may be corrupted."

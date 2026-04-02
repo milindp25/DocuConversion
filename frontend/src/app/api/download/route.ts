@@ -39,6 +39,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const upstream = await fetch(url);
 
     if (!upstream.ok) {
+      console.error(
+        `[download proxy] upstream fetch failed: url=${url} status=${upstream.status}`
+      );
       return NextResponse.json(
         { detail: "Failed to fetch file from storage" },
         { status: upstream.status }
@@ -62,7 +65,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         "cache-control": "private, max-age=60",
       },
     });
-  } catch {
+  } catch (err) {
+    console.error(
+      `[download proxy] unexpected error: url=${url}`,
+      err instanceof Error ? err.message : err
+    );
     return NextResponse.json(
       { detail: "Download failed. Please try again." },
       { status: 502 }

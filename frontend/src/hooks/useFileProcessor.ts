@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { uploadFile, apiRequest } from "@/lib/api-client";
 import { saveToHistory } from "@/lib/file-history";
+import { posthog } from "@/lib/posthog";
 import type { ProcessingJob, JobStatus } from "@/types";
 
 /** Configuration options for useFileProcessor */
@@ -79,6 +80,8 @@ export function useFileProcessor({
   const [isProcessing, setIsProcessing] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartRef = useRef<number>(0);
+  const uploadStartRef = useRef<number>(0);
+  const fileSizeKbRef = useRef<number>(0);
 
   /** Stops the polling interval if active */
   const stopPolling = useCallback(() => {
@@ -157,6 +160,12 @@ export function useFileProcessor({
                 downloadUrl: status.download_url,
               });
               dispatchToast("success", "Conversion complete! Your file is ready to download.");
+
+              posthog.capture("tool_completed", {
+                endpoint,
+                file_size_kb: fileSizeKbRef.current,
+                duration_ms: Date.now() - uploadStartRef.current,
+              });
             }
 
             if (status.status === "failed") {
@@ -164,6 +173,11 @@ export function useFileProcessor({
                 "error",
                 status.error_message || "Processing failed. Please try again."
               );
+
+              posthog.capture("tool_failed", {
+                endpoint,
+                error_message: status.error_message ?? "Processing failed",
+              });
             }
           }
         } catch {
@@ -195,11 +209,18 @@ export function useFileProcessor({
   const processFile = useCallback(
     async (file: File, options?: Record<string, string>) => {
       setIsProcessing(true);
+      uploadStartRef.current = Date.now();
+      fileSizeKbRef.current = Math.round(file.size / 1024);
       setJob({
         jobId: "",
         status: "uploading",
         progress: 0,
         fileName: file.name,
+      });
+
+      posthog.capture("tool_file_upload", {
+        endpoint,
+        file_size_kb: fileSizeKbRef.current,
       });
 
       try {

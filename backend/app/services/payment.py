@@ -60,7 +60,7 @@ class PaymentService:
         except PaymentError:
             raise
         except Exception as e:
-            logger.error("Stripe checkout failed: %s", str(e))
+            logger.exception("Stripe checkout failed:")
             raise PaymentError("Failed to create checkout session.") from e
 
     @staticmethod

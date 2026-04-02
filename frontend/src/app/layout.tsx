@@ -9,6 +9,7 @@ import { Inter } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { GlobalDropZone } from "@/components/tools/GlobalDropZone";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -64,14 +65,16 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
-        <AuthProvider>
-          <ToastProvider>
-            <GlobalDropZone />
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </ToastProvider>
-        </AuthProvider>
+        <PostHogProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <GlobalDropZone />
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </ToastProvider>
+          </AuthProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

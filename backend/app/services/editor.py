@@ -146,7 +146,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add text annotations: %s", str(e))
+            logger.exception("Failed to add text annotations:")
             raise EditingError(
                 "Failed to add text to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -238,7 +238,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add watermark: %s", str(e))
+            logger.exception("Failed to add watermark:")
             raise EditingError(
                 "Failed to add watermark to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -315,7 +315,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add page numbers: %s", str(e))
+            logger.exception("Failed to add page numbers:")
             raise EditingError(
                 "Failed to add page numbers to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -390,7 +390,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add highlights: %s", str(e))
+            logger.exception("Failed to add highlights:")
             raise EditingError(
                 "Failed to add highlights to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -506,7 +506,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add shapes: %s", str(e))
+            logger.exception("Failed to add shapes:")
             raise EditingError(
                 "Failed to add shapes to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -588,7 +588,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to add freehand drawings: %s", str(e))
+            logger.exception("Failed to add freehand drawings:")
             raise EditingError(
                 "Failed to add freehand drawings to the PDF. "
                 "The file may be corrupted or contain unsupported content."
@@ -643,7 +643,7 @@ class EditingService:
             return fields
 
         except Exception as e:
-            logger.error("Failed to extract form fields: %s", str(e))
+            logger.exception("Failed to extract form fields:")
             raise EditingError(
                 "Failed to extract form fields from the PDF. "
                 "The file may be corrupted or not contain any forms."
@@ -694,7 +694,7 @@ class EditingService:
         except EditingError:
             raise
         except Exception as e:
-            logger.error("Failed to fill form fields: %s", str(e))
+            logger.exception("Failed to fill form fields:")
             raise EditingError(
                 "Failed to fill form fields in the PDF. "
                 "The file may be corrupted or not contain fillable forms."

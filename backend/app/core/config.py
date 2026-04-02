@@ -5,6 +5,7 @@ Uses pydantic-settings to validate all required environment variables
 at startup, failing fast if any are missing or malformed.
 """
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -52,6 +53,14 @@ class Settings(BaseSettings):
     # Shareable links
     share_link_base_url: str = "http://localhost:3000/share"
     share_link_max_ttl_hours: int = 72
+
+    # Logging
+    log_level: str = Field(default="INFO")
+    log_format: str = Field(default="json")  # "json" for prod, "text" for dev
+
+    # Sentry
+    sentry_dsn: str | None = Field(default=None)
+    sentry_traces_sample_rate: float = Field(default=0.1)
 
     class Config:
         """Pydantic settings configuration."""

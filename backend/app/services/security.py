@@ -77,7 +77,7 @@ class SecurityService:
             return output_path
 
         except Exception as e:
-            logger.error("PDF protection failed: %s", str(e))
+            logger.exception("PDF protection failed:")
             raise SecurityError(
                 "Failed to add password protection to the PDF. "
                 "The file may be corrupted or already encrypted."
@@ -127,7 +127,7 @@ class SecurityService:
         except SecurityError:
             raise
         except Exception as e:
-            logger.error("PDF unlock failed: %s", str(e))
+            logger.exception("PDF unlock failed:")
             raise SecurityError(
                 "Failed to unlock the PDF. "
                 "The file may be corrupted or the password may be incorrect."

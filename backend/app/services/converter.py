@@ -64,7 +64,7 @@ class ConversionService:
                 return "\n\n".join(text_parts)
 
         except Exception as e:
-            logger.error("PDF to text extraction failed: %s", str(e))
+            logger.exception("PDF to text extraction failed:")
             raise ConversionError(
                 "Failed to extract text from the PDF. "
                 "The file may be corrupted or contain only scanned images. "
@@ -98,7 +98,7 @@ class ConversionService:
             )
             return output_path
         except Exception as e:
-            logger.error("PDF to text file write failed: %s", str(e))
+            logger.exception("PDF to text file write failed:")
             raise ConversionError(
                 "Failed to write extracted text to file."
             ) from e
@@ -506,7 +506,7 @@ class ConversionService:
             return output_path
 
         except Exception as e:
-            logger.error("PDF to Word conversion failed: %s", str(e))
+            logger.exception("PDF to Word conversion failed:")
             raise ConversionError(
                 "Failed to convert PDF to Word format. "
                 "The file may be corrupted or contain unsupported content."
@@ -557,7 +557,7 @@ class ConversionService:
                 return output_paths
 
         except Exception as e:
-            logger.error("PDF to image conversion failed: %s", str(e))
+            logger.exception("PDF to image conversion failed:")
             raise ConversionError(
                 "Failed to convert PDF pages to images. The file may be corrupted."
             ) from e
@@ -608,7 +608,7 @@ class ConversionService:
                 return output_path
 
         except Exception as e:
-            logger.error("PDF to images ZIP failed: %s", str(e))
+            logger.exception("PDF to images ZIP failed:")
             raise ConversionError(
                 "Failed to convert PDF pages to images. The file may be corrupted."
             ) from e
@@ -674,7 +674,7 @@ class ConversionService:
             return output_path
 
         except Exception as e:
-            logger.error("Image to PDF conversion failed: %s", str(e))
+            logger.exception("Image to PDF conversion failed:")
             raise ConversionError(
                 "Failed to convert image to PDF. "
                 "The image may be corrupted or in an unsupported format."
@@ -823,7 +823,7 @@ class ConversionService:
             return output_path
 
         except Exception as e:
-            logger.error("Word to PDF conversion failed: %s", str(e))
+            logger.exception("Word to PDF conversion failed:")
             raise ConversionError(
                 "Failed to convert Word document to PDF. "
                 "The file may be corrupted or in an unsupported format."
@@ -927,7 +927,7 @@ class ConversionService:
         except ConversionError:
             raise
         except Exception as e:
-            logger.error("PDF to Excel conversion failed: %s", str(e))
+            logger.exception("PDF to Excel conversion failed:")
             raise ConversionError(
                 "Failed to convert PDF to Excel format. "
                 "The file may be corrupted or contain unsupported content."
@@ -1008,7 +1008,7 @@ class ConversionService:
         except ConversionError:
             raise
         except Exception as e:
-            logger.error("PDF to PowerPoint conversion failed: %s", str(e))
+            logger.exception("PDF to PowerPoint conversion failed:")
             raise ConversionError(
                 "Failed to convert PDF to PowerPoint format. "
                 "The file may be corrupted or contain unsupported content."
@@ -1077,7 +1077,7 @@ class ConversionService:
             return output_path
 
         except Exception as e:
-            logger.error("Excel to PDF conversion failed: %s", str(e))
+            logger.exception("Excel to PDF conversion failed:")
             raise ConversionError(
                 "Failed to convert Excel to PDF. "
                 "The file may be corrupted or in an unsupported format."
@@ -1153,7 +1153,7 @@ class ConversionService:
             return output_path
 
         except Exception as e:
-            logger.error("PPTX to PDF conversion failed: %s", str(e))
+            logger.exception("PPTX to PDF conversion failed:")
             raise ConversionError(
                 "Failed to convert PowerPoint to PDF. "
                 "The file may be corrupted or in an unsupported format."
@@ -1257,7 +1257,7 @@ class ConversionService:
             return output_path
 
         except Exception as e:
-            logger.error("HTML to PDF conversion failed: %s", str(e))
+            logger.exception("HTML to PDF conversion failed:")
             raise ConversionError(
                 "Failed to convert HTML to PDF. "
                 "The file may be corrupted or in an unsupported format."
