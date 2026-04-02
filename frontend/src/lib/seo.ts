@@ -6,7 +6,7 @@
 
 import type { Metadata } from "next";
 
-const SITE_URL = "https://docuconversion.com";
+const SITE_URL = "https://www.docuconversion.com";
 const SITE_NAME = "DocuConversion";
 
 /** Input shape for generating tool page metadata */
@@ -144,6 +144,38 @@ export function generateFaqJsonLd(
   };
 }
 
+/**
+ * Generates BlogPosting JSON-LD for an individual blog article.
+ * Enables article carousel and AI citation eligibility.
+ */
+export function generateArticleJsonLd(article: {
+  title: string;
+  description: string;
+  slug: string;
+  date: string;
+  author: string;
+}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: article.title,
+    description: article.description,
+    url: `${SITE_URL}/blog/${article.slug}`,
+    datePublished: article.date,
+    dateModified: article.date,
+    author: {
+      "@type": "Organization",
+      name: article.author,
+      url: SITE_URL,
+    },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/blog/${article.slug}`,
+    },
+  };
+}
+
 /** Organization JSON-LD for the homepage */
 export const ORGANIZATION_JSONLD = {
   "@context": "https://schema.org",
@@ -153,9 +185,12 @@ export const ORGANIZATION_JSONLD = {
   url: SITE_URL,
   description:
     "Free online PDF tools — convert, edit, sign, and organize PDFs. Fast, private, no account required.",
+  // TODO: add logo once OG image / brand assets are created
+  // logo: { "@type": "ImageObject", url: `${SITE_URL}/og-image.png` },
+  sameAs: [],
 };
 
-/** WebSite JSON-LD for the homepage */
+/** WebSite JSON-LD for the homepage (includes SearchAction for Sitelinks Searchbox) */
 export const WEBSITE_JSONLD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -163,6 +198,14 @@ export const WEBSITE_JSONLD = {
   name: SITE_NAME,
   url: SITE_URL,
   publisher: { "@id": `${SITE_URL}/#organization` },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE_URL}/?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export { SITE_URL, SITE_NAME };

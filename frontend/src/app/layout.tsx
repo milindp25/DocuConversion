@@ -23,7 +23,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://docuconversion.com"),
+  metadataBase: new URL("https://www.docuconversion.com"),
   title: {
     default: `${APP_NAME} — Free Online PDF Tools: Convert, Edit & Sign`,
     template: `%s | ${APP_NAME}`,
@@ -39,14 +39,14 @@ export const metadata: Metadata = {
     "free PDF tools",
   ],
   alternates: {
-    canonical: "https://docuconversion.com",
+    canonical: "https://www.docuconversion.com",
   },
   openGraph: {
     type: "website",
     siteName: APP_NAME,
     title: `${APP_NAME} — Free Online PDF Tools`,
     description: APP_DESCRIPTION,
-    url: "https://docuconversion.com",
+    url: "https://www.docuconversion.com",
   },
   twitter: {
     card: "summary_large_image",
@@ -63,6 +63,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
+        <link rel="dns-prefetch" href="https://us.i.posthog.com" />
+        <link rel="preconnect" href="https://us-assets.i.posthog.com" crossOrigin="anonymous" />
         <JsonLd data={ORGANIZATION_JSONLD} />
         <JsonLd data={WEBSITE_JSONLD} />
         <JsonLd
@@ -70,7 +72,7 @@ export default function RootLayout({
             "@context": "https://schema.org",
             "@type": "WebApplication",
             name: "DocuConversion",
-            url: "https://docuconversion.com",
+            url: "https://www.docuconversion.com",
             description:
               "Convert, edit, sign, and organize PDFs — free, fast, private.",
             applicationCategory: "Productivity",

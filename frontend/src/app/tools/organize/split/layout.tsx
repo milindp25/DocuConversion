@@ -2,7 +2,7 @@
  * Layout with SEO metadata for the Split PDF tool page.
  */
 
-import { generateToolMetadata, generateBreadcrumbJsonLd } from "@/lib/seo";
+import { generateToolMetadata, generateToolJsonLd, generateBreadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
@@ -20,6 +20,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           { name: "Organize", path: "/tools/organize" },
           { name: "Split PDF", path: "/tools/organize/split" },
         ])}
+      />
+      <JsonLd
+        data={generateToolJsonLd({
+          title: "Split PDF",
+          description: "Split a PDF into separate documents by page range. Free, fast, and no account needed.",
+          path: "/tools/organize/split",
+        })}
       />
       {children}
     </>

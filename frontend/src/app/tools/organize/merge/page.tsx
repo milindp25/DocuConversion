@@ -61,6 +61,29 @@ export default function MergePdfPage() {
       description="Combine multiple PDF files into a single document"
       category="organize"
       icon={FolderOpen}
+      supportingContent={
+        <>
+          <h2>How to Merge PDF Files</h2>
+          <p>
+            Add two or more PDF files using the uploader. Use the arrow buttons to
+            reorder them so pages appear in the sequence you need. Click Merge to
+            combine every file into a single PDF, then download the result.
+          </p>
+          <h2>Reordering and Organizing Pages</h2>
+          <p>
+            The file list lets you move documents up or down before merging. This
+            means you can assemble reports, combine scanned pages, or join chapters
+            in the correct reading order without editing each file individually.
+          </p>
+          <h2>Batch Merge and Compatibility</h2>
+          <p>
+            You can add as many files as needed in a single session. The merger
+            preserves internal links, annotations, and page sizes from each source
+            document. The output is a standard PDF that opens in any viewer or
+            browser.
+          </p>
+        </>
+      }
     >
       <FileUploader
         acceptedTypes={ACCEPTED_FILE_TYPES.PDF}

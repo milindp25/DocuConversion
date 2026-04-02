@@ -69,6 +69,31 @@ export default function CompressPdfPage() {
       description="Reduce PDF file size while maintaining quality"
       category="organize"
       icon={Minimize2}
+      supportingContent={
+        <>
+          <h2>How to Compress a PDF</h2>
+          <p>
+            Upload your PDF, choose a compression level, and click Compress. Low
+            compression preserves the highest quality, Recommended balances size and
+            clarity, and Maximum compression produces the smallest file. Download the
+            result when processing completes.
+          </p>
+          <h2>When to Compress PDFs</h2>
+          <p>
+            Large PDFs are difficult to send by email, slow to load on websites, and
+            consume unnecessary storage. Compressing before sharing keeps attachments
+            under common size limits and speeds up page loads for documents published
+            online.
+          </p>
+          <h2>File Safety and Quality</h2>
+          <p>
+            Your original file is never modified. The compressor reduces image
+            resolution and optimizes internal PDF structures while keeping text
+            fully readable. All processing happens on the server and files are
+            automatically deleted after a short retention period.
+          </p>
+        </>
+      }
     >
       <FileUploader
         acceptedTypes={ACCEPTED_FILE_TYPES.PDF}

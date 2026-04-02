@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
               `img-src 'self' data: https://*.r2.cloudflarestorage.com`,
               `font-src 'self' data:`,
               `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} https://us.i.posthog.com https://*.sentry.io`,
+              `frame-ancestors 'none'`,
             ].join("; "),
           },
           {
@@ -47,6 +48,10 @@ const nextConfig: NextConfig = {
           {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
           },
           {
             key: "Permissions-Policy",

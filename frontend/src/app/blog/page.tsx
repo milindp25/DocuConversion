@@ -7,19 +7,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Blog — PDF Tips & Guides",
   description:
     "Learn how to convert, compress, and sign PDFs with free tips and step-by-step guides from the DocuConversion team.",
   alternates: {
-    canonical: "https://docuconversion.com/blog",
+    canonical: "https://www.docuconversion.com/blog",
   },
   openGraph: {
     title: "Blog — PDF Tips & Guides | DocuConversion",
     description:
       "Learn how to convert, compress, and sign PDFs with free tips and step-by-step guides.",
-    url: "https://docuconversion.com/blog",
+    url: "https://www.docuconversion.com/blog",
     siteName: "DocuConversion",
     type: "website",
   },
@@ -83,9 +84,34 @@ const ARTICLES: BlogArticle[] = [
  * Blog listing page. Renders a grid of article cards that link
  * to individual blog posts under /blog/[slug].
  */
+/** ItemList structured data for the blog listing */
+function generateBlogItemListJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "DocuConversion Blog — PDF Tips & Guides",
+    itemListOrder: "https://schema.org/ItemListOrderDescending",
+    numberOfItems: ARTICLES.length,
+    itemListElement: ARTICLES.map((article, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: `${SITE_URL}/blog/${article.slug}`,
+      name: article.title,
+    })),
+  };
+}
+
 export default function BlogPage() {
+  const itemListJsonLd = generateBlogItemListJsonLd();
+
   return (
     <div className="bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6 lg:px-8">
         {/* Page header */}
         <div className="mb-14 text-center">

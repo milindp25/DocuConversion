@@ -228,6 +228,30 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* About Section */}
+      <section className="bg-gradient-to-b from-gray-950 to-gray-900 py-20">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold text-white">
+            About DocuConversion
+          </h2>
+          <p className="mt-6 text-sm leading-relaxed text-gray-400">
+            DocuConversion is a free, all-in-one PDF platform built for
+            individuals, students, and small teams who work with documents
+            daily. Our tools run entirely in the browser — your files are
+            processed server-side and auto-deleted immediately after
+            conversion. No account is needed for basic use, and no software
+            installation is required.
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-gray-400">
+            We offer 30+ tools spanning format conversion, editing,
+            e-signatures, page organization, security, and AI-powered
+            analysis. Free users get 50 operations per day with a 10 MB
+            file limit. Pro and Enterprise plans unlock higher limits, batch
+            processing, and priority support.
+          </p>
+        </div>
+      </section>
+
       {/* Value Props */}
       <section className="bg-gradient-to-b from-gray-950 via-gray-900/80 to-gray-950 py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

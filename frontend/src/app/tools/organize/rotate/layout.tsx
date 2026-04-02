@@ -1,14 +1,14 @@
 /**
- * Layout with SEO metadata for the Summarize PDF tool page.
+ * Layout with SEO metadata for the Rotate PDF tool page.
  */
 
 import { generateToolMetadata, generateToolJsonLd, generateBreadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata = generateToolMetadata({
-  title: "Summarize PDF",
-  description: "Get an AI-generated summary of any PDF document. Free, fast, and no account needed.",
-  path: "/tools/ai/summarize",
+  title: "Rotate PDF",
+  description: "Rotate PDF pages by 90, 180, or 270 degrees. Free, fast, and no account needed.",
+  path: "/tools/organize/rotate",
 });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -17,15 +17,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <JsonLd
         data={generateBreadcrumbJsonLd([
           { name: "Home", path: "/" },
-          { name: "AI", path: "/tools/ai" },
-          { name: "Summarize PDF", path: "/tools/ai/summarize" },
+          { name: "Organize", path: "/tools/organize" },
+          { name: "Rotate PDF", path: "/tools/organize/rotate" },
         ])}
       />
       <JsonLd
         data={generateToolJsonLd({
-          title: "Summarize PDF",
-          description: "Get an AI-generated summary of any PDF document. Free, fast, and no account needed.",
-          path: "/tools/ai/summarize",
+          title: "Rotate PDF",
+          description: "Rotate PDF pages by 90, 180, or 270 degrees. Free, fast, and no account needed.",
+          path: "/tools/organize/rotate",
         })}
       />
       {children}
