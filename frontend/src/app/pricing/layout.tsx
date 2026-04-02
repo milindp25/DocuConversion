@@ -20,7 +20,12 @@ const PRICING_OFFERS_JSONLD = {
   name: `${SITE_NAME} — PDF Tools`,
   description: "Free online PDF tools with optional Pro and Enterprise upgrades.",
   url: `${SITE_URL}/pricing`,
-  brand: { "@id": `${SITE_URL}/#organization` },
+  image: `${SITE_URL}/opengraph-image`,
+  brand: {
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+  },
   offers: [
     {
       "@type": "Offer",
