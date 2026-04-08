@@ -189,7 +189,17 @@ export default function PrivacyPolicyPage() {
           below.
         </p>
 
-        <SectionHeading>7. Data Security</SectionHeading>
+        <SectionHeading>7. Children&apos;s Privacy (COPPA)</SectionHeading>
+        <p>
+          DocuConversion is not directed at children under the age of 13 (or
+          under 16 in the European Economic Area). We do not knowingly collect
+          personal information from children. If you are a parent or guardian
+          and believe your child has provided us with personal data, please
+          contact us at the address below and we will promptly delete that
+          information.
+        </p>
+
+        <SectionHeading>8. Data Security</SectionHeading>
         <p>
           We implement industry-standard security measures including TLS
           encryption for all data in transit, encryption at rest for stored
@@ -197,7 +207,7 @@ export default function PrivacyPolicyPage() {
           to production systems is restricted to authorized personnel only.
         </p>
 
-        <SectionHeading>8. Changes to This Policy</SectionHeading>
+        <SectionHeading>9. Changes to This Policy</SectionHeading>
         <p>
           We may update this Privacy Policy from time to time. When we do, we
           will update the &quot;Last updated&quot; date at the top of this
@@ -205,7 +215,7 @@ export default function PrivacyPolicyPage() {
           acceptance of the updated policy.
         </p>
 
-        <SectionHeading>9. Contact</SectionHeading>
+        <SectionHeading>10. Contact</SectionHeading>
         <p>
           If you have questions about this Privacy Policy or wish to exercise
           your data rights, please contact us at:

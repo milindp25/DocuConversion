@@ -186,7 +186,16 @@ export default function TermsOfServicePage() {
           </li>
         </ul>
 
-        <SectionHeading>7. Changes to Terms</SectionHeading>
+        <SectionHeading>7. Age Requirement</SectionHeading>
+        <p>
+          You must be at least 13 years old (or 16 in the European Economic
+          Area) to use DocuConversion. By using the service, you represent that
+          you meet this age requirement. If we learn that we have collected
+          personal data from a child under the applicable minimum age, we will
+          delete that data promptly.
+        </p>
+
+        <SectionHeading>8. Changes to Terms</SectionHeading>
         <p>
           We may update these Terms from time to time. When we make material
           changes, we will update the &quot;Last updated&quot; date at the
@@ -195,7 +204,7 @@ export default function TermsOfServicePage() {
           constitutes acceptance of the updated Terms.
         </p>
 
-        <SectionHeading>8. Governing Law</SectionHeading>
+        <SectionHeading>9. Governing Law</SectionHeading>
         <p>
           These Terms are governed by and construed in accordance with
           applicable law. Any disputes arising from these Terms or your use
@@ -203,7 +212,7 @@ export default function TermsOfServicePage() {
           first, and if necessary, through binding arbitration.
         </p>
 
-        <SectionHeading>9. Contact</SectionHeading>
+        <SectionHeading>10. Contact</SectionHeading>
         <p>
           If you have questions about these Terms of Service, please contact
           us at:
